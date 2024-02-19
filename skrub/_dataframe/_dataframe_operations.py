@@ -349,6 +349,8 @@ def _concat_horizontal_polars(*dataframes):
 def to_column_list(obj):
     if is_column(obj):
         return [obj]
+    if is_expression(obj):
+        return [obj]
     if is_dataframe(obj):
         return [col(obj, c) for c in column_names(obj)]
     if not hasattr(obj, "__iter__"):

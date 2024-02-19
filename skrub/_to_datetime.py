@@ -39,19 +39,37 @@ class ToDatetime(BaseEstimator):
             return NotImplemented
 
         self.datetime_format_ = datetime_format
-        as_datetime = sbd.to_datetime(
-            column, format=self.datetime_format_, strict=False
+        sample_as_datetime = sbd.to_datetime(
+            sbd.sample(column, min(10, sbd.shape(column)[0])),
+            format=self.datetime_format_,
+            strict=False,
         )
-        self.output_dtype_ = sbd.dtype(as_datetime)
-        return as_datetime
+        self.output_dtype_ = sbd.dtype(sample_as_datetime)
+        return self.transform(column)
 
     def transform(self, column):
-        column = sbd.to_datetime(column, format=self.datetime_format_, strict=False)
-        return sbd.cast(column, self.output_dtype_)
+        return _col_to_datetime(
+            column, format=self.datetime_format_, dtype=self.output_dtype_
+        )
 
     def fit(self, column):
         self.fit_transform(column)
         return self
+
+
+@sbd.dispatch
+def _col_to_datetime(column, format, dtype):
+    column = sbd.to_datetime(column, format=format, strict=False)
+    return sbd.cast(column, dtype)
+
+
+@_col_to_datetime.specialize("polars")
+def _col_to_datetime_polars(column, format, dtype):
+    import polars as pl
+
+    if format is None:
+        return pl.col(column.name).cast(dtype)
+    return pl.col(column.name).str.to_datetime(format=format).cast(dtype)
 
 
 @sbd.dispatch
