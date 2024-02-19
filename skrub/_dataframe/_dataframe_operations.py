@@ -149,6 +149,16 @@ def _is_column_polars(obj):
 
 
 @dispatch
+def is_expression(obj):
+    return False
+
+
+@is_expression.specialize("polars", "Expression")
+def _is_expression_polars_expression(obj):
+    return True
+
+
+@dispatch
 def to_array(obj):
     raise NotImplementedError()
 
@@ -213,9 +223,14 @@ def _name_pandas(col):
     return col.name
 
 
-@name.specialize("polars")
-def _name_polars(col):
+@name.specialize("polars", "Column")
+def _name_polars_series(col):
     return col.name
+
+
+@name.specialize("polars", "Expression")
+def _name_polars_expression(col):
+    return col.meta.output_name()
 
 
 @dispatch
@@ -228,9 +243,14 @@ def _rename_pandas(col, new_name):
     return col.rename(new_name)
 
 
-@rename.specialize("polars")
-def _rename_polars(col, new_name):
+@rename.specialize("polars", "Column")
+def _rename_polars_column(col, new_name):
     return col.rename(new_name)
+
+
+@rename.specialize("polars", "Expression")
+def _rename_polars_expression(col, new_name):
+    return col.alias(new_name)
 
 
 @dispatch
@@ -299,7 +319,14 @@ def _dataframe_like_pandas(df, *columns):
 
 @dataframe_like.specialize("polars")
 def _dataframe_like_polars(df, *columns):
-    del df
+    is_expr = list(map(is_expression, columns))
+    if all(is_expr):
+        return df.select(columns)
+    _first_col = lambda single_col_df: single_col_df[single_col_df.columns[0]]
+    columns = [
+        _first_col(df.select(c)) if is_c_expr else c
+        for (c, is_c_expr) in zip(columns, is_expr)
+    ]
     return pl.DataFrame({name(c): c for c in columns})
 
 

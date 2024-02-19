@@ -23,6 +23,7 @@ def _load_dataframe_module_info(name):
                 "LazyFrame": [polars.LazyFrame],
                 "EagerFrame": [polars.DataFrame],
                 "Column": [polars.Series],
+                "Expression": [polars.Expr],
             },
         }
     raise KeyError(f"Unknown module: {name}")

@@ -59,16 +59,18 @@ def _get_dt_feature_pandas(column, feature):
         return ((column - epoch) / pd.Timedelta("1s")).astype("float32")
     assert feature in _TIME_LEVELS + ["day_of_the_week"]
     feature = {"day_of_the_week": "day_of_week"}.get(feature, feature)
-    return getattr(column.dt, feature)
+    return getattr(column.dt, feature).astype("float32")
 
 
 @_get_dt_feature.specialize("polars")
 def _get_dt_feature_polars(column, feature):
     if feature == "total_seconds":
-        return (column.dt.timestamp(time_unit="ms") / 1000).cast(pl.Float32)
+        return (pl.col(column.name).dt.timestamp(time_unit="ms") / 1000).cast(
+            pl.Float32
+        )
     assert feature in _TIME_LEVELS + ["day_of_the_week"]
     feature = {"day_of_the_week": "weekday"}.get(feature, feature)
-    return getattr(column.dt, feature)()
+    return getattr(pl.col(column.name).dt, feature)().cast(pl.Float32)
 
 
 class DatetimeColumnEncoder(BaseEstimator):
@@ -109,8 +111,9 @@ class DatetimeColumnEncoder(BaseEstimator):
         name = sbd.name(column)
         all_extracted = []
         for feature in self.extracted_features_:
-            extracted = _get_dt_feature(column, feature).rename(f"{name}_{feature}")
-            extracted = sbd.to_float32(extracted)
+            extracted = sbd.rename(
+                _get_dt_feature(column, feature), f"{name}_{feature}"
+            )
             all_extracted.append(extracted)
         return all_extracted
 
