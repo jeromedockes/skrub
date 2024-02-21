@@ -1,5 +1,7 @@
 from functools import singledispatch
 
+from ._lazy_column import PolarsLazyColumn
+
 
 def _load_dataframe_module_info(name):
     # if the module is not installed, import errors are propagated
@@ -23,6 +25,7 @@ def _load_dataframe_module_info(name):
                 "LazyFrame": [polars.LazyFrame],
                 "EagerFrame": [polars.DataFrame],
                 "Column": [polars.Series],
+                "LazyColumn": [PolarsLazyColumn],
                 "Expression": [polars.Expr],
             },
         }
