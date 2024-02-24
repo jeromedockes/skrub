@@ -83,7 +83,7 @@ class _Step:
         self.on_cols = s.all()
 
 
-class _StepConfig:
+class StepConfig:
     def __init__(self, pipeline, step):
         self.pipeline = pipeline
         self.step = step
@@ -100,10 +100,15 @@ class _StepConfig:
         self.step.on_cols = cols
         return self
 
-    def replace(self, other=-1):
+    def replace(self, other=None):
         self.pipeline._steps.remove(self.step)
+        if other is None:
+            other = _get_name(self.step)
         self.pipeline._replace_step(self.step, other)
         return self
+
+    def replace_last(self):
+        return self.replace(-1)
 
     def insert(self, idx):
         self.pipeline._steps.remove(self.step)
@@ -125,6 +130,10 @@ def _pick_names(suggested_names):
         used.add(new)
         new_names.append(new)
     return new_names
+
+
+def _get_name(step):
+    return step.step_name or _camel_to_snake(step.estimator.__class__.__name__)
 
 
 @_add_estimators_as_methods
@@ -150,14 +159,11 @@ class Pipe:
     def use(self, estimator):
         step = _Step(estimator)
         self._steps.append(step)
-        return _StepConfig(self, step)
+        return StepConfig(self, step)
 
     @property
     def step_names(self):
-        suggested_names = [
-            step.step_name or _camel_to_snake(step.estimator.__class__.__name__)
-            for step in self._steps
-        ]
+        suggested_names = [_get_name(step) for step in self._steps]
         return _pick_names(suggested_names)
 
     def _prepare_steps(self):
@@ -188,7 +194,7 @@ class Pipe:
         self._steps = self._steps[:-1]
         return step
 
-    def remove_step(self, step=-1):
+    def remove(self, step=-1):
         if isinstance(step, str):
             step = self.step_names.index(step)
         del self._steps[step]
@@ -248,9 +254,10 @@ class Pipe:
         if self._has_predictor():
             n_steps -= 1
             predictor_info = f" + {self._steps[-1].estimator.__class__.__name__}"
+        step_descriptions = [f"{i}: {name}" for i, name in enumerate(self.step_names)]
         pipe_description = (
             f"<{self.__class__.__name__}: {n_steps} transformations{predictor_info}>"
-            + (f"\nSteps:\n{', '.join(self.step_names)}" if self._steps else "")
+            + (f"\nSteps:\n{', '.join(step_descriptions)}" if self._steps else "")
         )
         if self.input_data is None:
             return pipe_description
@@ -261,7 +268,7 @@ class Pipe:
             return (
                 f"{pipe_description}\nTransform failed:\n    {type(e).__name__}:"
                 f" {e}\nNote:\nYou can inspect pipeline steps with `.steps` or remove"
-                " the last step with `.pop()`.\nInstead of adding a step you can also"
-                " replace the last one, for example:\n`pipe.to_datetime().replace()`"
+                " steps with `.pop()` or `remove()`.\nInstead of adding a step you can"
+                " also replace one, for example:\n`pipe.to_datetime().replace()`"
                 " instead of `pipe.to_datetime()`."
             )
