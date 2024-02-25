@@ -116,7 +116,10 @@ class StepConfig:
         return self
 
     def __repr__(self):
-        return repr(self.pipeline)
+        return (
+            f"<StepConfig for {self.step.estimator.__class__.__name__}>\n"
+            f"Full pipeline:\n{self.pipeline!r}"
+        )
 
 
 def _pick_names(suggested_names):
