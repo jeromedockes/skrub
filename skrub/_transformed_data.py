@@ -140,7 +140,7 @@ def _get_name(step):
 
 
 @_add_estimators_as_methods
-class Pipe:
+class TransformedData:
     def __init__(
         self, input_data=None, n_jobs=None, preview_sample_size=200, random_seed=0
     ):
