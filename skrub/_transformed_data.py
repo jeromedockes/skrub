@@ -76,9 +76,9 @@ def _add_estimators_as_methods(cls):
 
 
 class _Step:
-    def __init__(self, estimator, on_cols=s.all(), param_grid=None, step_name=None):
+    def __init__(self, estimator, cols=s.all(), param_grid=None, step_name=None):
         self.estimator = estimator
-        self.on_cols = on_cols
+        self.cols = cols
         self.param_grid = {} if param_grid is None else param_grid
         self.step_name = step_name
 
@@ -130,9 +130,7 @@ class TransformedData:
         return hasattr(self._steps[-1].estimator, "predict")
 
     def use(self, estimator, cols=s.all(), param_grid=None, step_name=None):
-        step = _Step(
-            estimator, on_cols=cols, param_grid=param_grid, step_name=step_name
-        )
+        step = _Step(estimator, cols=cols, param_grid=param_grid, step_name=step_name)
         return self._with_added_step(step)
 
     @property
@@ -151,7 +149,7 @@ class TransformedData:
                 prepared_steps.append(
                     (
                         name,
-                        s.make_selector(step.on_cols).use(
+                        s.make_selector(step.cols).use(
                             step.estimator, n_jobs=self.n_jobs
                         ),
                     )
