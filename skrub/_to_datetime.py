@@ -91,7 +91,9 @@ def to_datetime(df, format=None):
 @to_datetime.specialize("pandas", "DataFrame")
 @to_datetime.specialize("polars", "DataFrame")
 def _to_datetime_dataframe(df, format=None):
-    return s.all().use(ToDatetime(datetime_format=format)).fit_transform(df)
+    return (
+        s.all().make_transformer(ToDatetime(datetime_format=format)).fit_transform(df)
+    )
 
 
 @to_datetime.specialize("pandas", "Column")

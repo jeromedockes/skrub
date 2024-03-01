@@ -1,4 +1,5 @@
 from .. import _dataframe as sbd
+from .._add_estimator_methods import add_estimators_as_methods
 from ._utils import list_difference, list_intersect
 
 
@@ -59,6 +60,7 @@ def select(df, selector):
     return _select_col_names(df, make_selector(selector).select(df))
 
 
+@add_estimators_as_methods
 class Selector:
     def select(self, df, ignore=()):
         raise NotImplementedError()
@@ -101,7 +103,7 @@ class Selector:
             return _make_selector_in_expr(other) ^ self
         return XOr(other, self)
 
-    def use(self, transformer, n_jobs=None, columnwise="auto"):
+    def make_transformer(self, transformer, n_jobs=None, columnwise="auto"):
         from .._on_column_selection import OnColumnSelection
         from .._on_each_column import OnEachColumn
 
@@ -111,6 +113,25 @@ class Selector:
         if columnwise:
             return OnEachColumn(transformer, cols=self, n_jobs=n_jobs)
         return OnColumnSelection(transformer, cols=self)
+
+    def use(self, estimator):
+        return _Step(cols=self, estimator=estimator)
+
+
+class _Step:
+    def __init__(self, cols, estimator):
+        self.estimator_ = estimator
+        self.cols_ = cols
+        self.param_grid_ = {}
+        self.step_name_ = None
+
+    def param_grid(self, **param_grid):
+        self.param_grid_ = param_grid
+        return self
+
+    def step_name(self, step_name):
+        self.step_name_ = step_name
+        return self
 
 
 class All(Selector):
