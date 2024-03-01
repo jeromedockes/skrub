@@ -11,7 +11,7 @@ from . import _dataframe as sbd
 from . import selectors as s
 from ._check_input import CheckInputDataFrame
 from ._clean_null_strings import CleanNullStrings
-from ._datetime_encoder import DatetimeColumnEncoder, DatetimeEncoder
+from ._datetime_encoder import DatetimeEncoder, EncodeDatetime
 from ._gap_encoder import GapEncoder
 from ._minhash_encoder import MinHashEncoder
 from ._pandas_convert_dtypes import PandasConvertDTypes
@@ -26,7 +26,7 @@ _SKRUB_TRANSFORMERS = [
     for c in [
         CheckInputDataFrame,
         CleanNullStrings,
-        DatetimeColumnEncoder,
+        EncodeDatetime,
         DatetimeEncoder,
         GapEncoder,
         MinHashEncoder,
@@ -76,50 +76,11 @@ def _add_estimators_as_methods(cls):
 
 
 class _Step:
-    def __init__(self, estimator):
+    def __init__(self, estimator, on_cols=s.all(), param_grid=None, step_name=None):
         self.estimator = estimator
-        self.step_name = None
-        self.param_grid = {}
-        self.on_cols = s.all()
-
-
-class StepConfig:
-    def __init__(self, pipeline, step):
-        self.pipeline = pipeline
-        self.step = step
-
-    def step_name(self, name):
-        self.step.step_name = name
-        return self
-
-    def param_grid(self, **grid):
-        self.step.param_grid = grid
-        return self
-
-    def on_cols(self, cols):
-        self.step.on_cols = cols
-        return self
-
-    def replace(self, other=None):
-        self.pipeline._steps.remove(self.step)
-        if other is None:
-            other = _get_name(self.step)
-        self.pipeline._replace_step(self.step, other)
-        return self
-
-    def replace_last(self):
-        return self.replace(-1)
-
-    def insert(self, idx):
-        self.pipeline._steps.remove(self.step)
-        self.pipeline._insert_step(idx, self.step)
-        return self
-
-    def __repr__(self):
-        return (
-            f"<StepConfig for {self.step.estimator.__class__.__name__}>\n"
-            f"Full pipeline:\n{self.pipeline!r}"
-        )
+        self.on_cols = on_cols
+        self.param_grid = {} if param_grid is None else param_grid
+        self.step_name = step_name
 
 
 def _pick_names(suggested_names):
@@ -139,7 +100,6 @@ def _get_name(step):
     return step.step_name or _camel_to_snake(step.estimator.__class__.__name__)
 
 
-@_add_estimators_as_methods
 class TransformedData:
     def __init__(
         self, input_data=None, n_jobs=None, preview_sample_size=200, random_seed=0
@@ -154,15 +114,26 @@ class TransformedData:
         self.random_seed = random_seed
         self._steps = []
 
+    def _with_added_step(self, step):
+        new = TransformedData(
+            input_data=self.input_data,
+            n_jobs=self.n_jobs,
+            preview_sample_size=self.preview_sample_size,
+            random_seed=self.random_seed,
+        )
+        new._steps = self._steps + [step]
+        return new
+
     def _has_predictor(self):
         if not self._steps:
             return False
         return hasattr(self._steps[-1].estimator, "predict")
 
-    def use(self, estimator):
-        step = _Step(estimator)
-        self._steps.append(step)
-        return StepConfig(self, step)
+    def use(self, estimator, cols=s.all(), param_grid=None, step_name=None):
+        step = _Step(
+            estimator, on_cols=cols, param_grid=param_grid, step_name=step_name
+        )
+        return self._with_added_step(step)
 
     @property
     def step_names(self):
@@ -201,18 +172,6 @@ class TransformedData:
         if isinstance(step, str):
             step = self.step_names.index(step)
         del self._steps[step]
-        return self
-
-    def _replace_step(self, new, step=-1):
-        if isinstance(step, str):
-            step = self.step_names.index(step)
-        self._steps[step] = new
-        return self
-
-    def _insert_step(self, idx, new):
-        if not isinstance(idx, int):
-            raise TypeError("idx must be an int")
-        self._steps.insert(idx, new)
         return self
 
     @property
@@ -271,7 +230,5 @@ class TransformedData:
             return (
                 f"{pipe_description}\nTransform failed:\n    {type(e).__name__}:"
                 f" {e}\nNote:\nYou can inspect pipeline steps with `.steps` or remove"
-                " steps with `.pop()` or `remove()`.\nInstead of adding a step you can"
-                " also replace one, for example:\n`pipe.to_datetime().replace()`"
-                " instead of `pipe.to_datetime()`."
+                " steps with `.pop()` or `remove()`."
             )
