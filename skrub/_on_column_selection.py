@@ -93,29 +93,41 @@ class OnColumnSelection(TransformerMixin, BaseEstimator, auto_wrap_output_keys=(
         self._columns = _selectors.make_selector(self.cols).select(X)
         to_transform = _selectors.select(X, self._columns)
         passthrough = _selectors.select(X, _selectors.inv(self._columns))
-        self.transformer_ = clone(self.transformer)
-        if hasattr(self.transformer_, "set_output"):
-            df_module_name = sbd.dataframe_module_name(X)
-            self.transformer_.set_output(transform=df_module_name)
-        transformed = self.transformer_.fit_transform(to_transform, y)
         passthrough_names = sbd.column_names(passthrough)
-        self._transformed_output_names = pick_column_names(
-            sbd.column_names(transformed), forbidden_names=passthrough_names
-        )
-        transformed = sbd.set_column_names(transformed, self._transformed_output_names)
+        if self._columns:
+            self.transformer_ = clone(self.transformer)
+            if hasattr(self.transformer_, "set_output"):
+                df_module_name = sbd.dataframe_module_name(X)
+                self.transformer_.set_output(transform=df_module_name)
+            transformed = self.transformer_.fit_transform(to_transform, y)
+            self._transformed_output_names = pick_column_names(
+                sbd.column_names(transformed), forbidden_names=passthrough_names
+            )
+            transformed = sbd.set_column_names(
+                transformed, self._transformed_output_names
+            )
+            result = sbd.concat_horizontal(passthrough, transformed)
+        else:
+            self.transformer_ = None
+            result = passthrough
+            self._transformed_output_names = []
         self.used_inputs_ = self._columns
         self.created_outputs_ = self._transformed_output_names
         self.all_outputs_ = passthrough_names + self._transformed_output_names
         self.feature_names_in_ = self.all_inputs_
-        return sbd.concat_horizontal(passthrough, transformed)
+        return result
 
     def fit(self, X, y=None):
         self.fit_transform(X, y)
         return self
 
     def transform(self, X):
+        # do the selection even if self._columns is empty to raise if X doesn't
+        # have the right columns
         to_transform = _selectors.select(X, self._columns)
         passthrough = _selectors.select(X, _selectors.inv(self._columns))
+        if not self._columns:
+            return passthrough
         transformed = self.transformer_.transform(to_transform)
         transformed = sbd.set_column_names(transformed, self._transformed_output_names)
         return sbd.concat_horizontal(passthrough, transformed)
