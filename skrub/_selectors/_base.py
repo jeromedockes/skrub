@@ -122,12 +122,7 @@ class _Step:
     def __init__(self, cols, estimator):
         self.estimator_ = estimator
         self.cols_ = cols
-        self.param_grid_ = {}
         self.step_name_ = None
-
-    def param_grid(self, **param_grid):
-        self.param_grid_ = param_grid
-        return self
 
     def step_name(self, step_name):
         self.step_name_ = step_name

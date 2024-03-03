@@ -7,6 +7,14 @@ from sklearn.pipeline import Pipeline
 from . import _dataframe as sbd
 from . import selectors as s
 from ._add_estimator_methods import _camel_to_snake
+from ._choice import (
+    Choice,
+    choose,
+    expand_grid,
+    find_param_choice,
+    first,
+    set_params_to_first,
+)
 
 
 def _pick_names(suggested_names):
@@ -23,13 +31,29 @@ def _pick_names(suggested_names):
 
 
 def _get_name(step):
-    return step.step_name_ or _camel_to_snake(step.estimator_.__class__.__name__)
+    return (
+        getattr(step, "name_", None)
+        or getattr(first(step), "step_name_", None)
+        or _camel_to_snake(first(step).estimator_.__class__.__name__)
+    )
 
 
-def _to_step(step):
-    if not hasattr(step, "step_name"):
-        step = s.all().use(step)
-    return step
+def _to_step(obj):
+    if isinstance(obj, Choice):
+        return choose(*map(_to_step, obj.options_)).name(obj.name_)
+    if hasattr(obj, "estimator_"):
+        return obj
+    return s.all().use(obj)
+
+
+def _to_estimator(step, n_jobs):
+    if isinstance(step, Choice):
+        return choose(*(_to_estimator(opt, n_jobs) for opt in step.options_)).name(
+            step.name_
+        )
+    if hasattr(step.estimator_, "predict"):
+        return step.estimator_
+    return step.cols_.make_transformer(step.estimator_, n_jobs=n_jobs)
 
 
 class TransformedData:
@@ -59,7 +83,7 @@ class TransformedData:
     def _has_predictor(self):
         if not self._steps:
             return False
-        return hasattr(self._steps[-1].estimator_, "predict")
+        return hasattr(first(self._steps[-1]).estimator_, "predict")
 
     @property
     def step_names(self):
@@ -67,25 +91,20 @@ class TransformedData:
         return _pick_names(suggested_names)
 
     def _prepare_steps(self):
-        prepared_steps = []
-        param_grid = {}
-        for name, step in zip(self.step_names, self._steps):
-            if hasattr(step.estimator_, "predict"):
-                prepared_steps.append((name, step.estimator_))
-                grid_name = name
-            else:
-                prepared_steps.append(
-                    (
-                        name,
-                        s.make_selector(step.cols_).make_transformer(
-                            step.estimator_, n_jobs=self.n_jobs
-                        ),
-                    )
-                )
-                grid_name = f"{name}__transformer"
-            for param_name, param_values in step.param_grid_.items():
-                param_grid[f"{grid_name}__{param_name}"] = param_values
-        return prepared_steps, param_grid
+        return [_to_estimator(step, self.n_jobs) for step in self._steps]
+
+    def _prepare_default_steps(self):
+        return list(map(set_params_to_first, self._prepare_steps()))
+
+    def _prepare_grid(self):
+        grid = dict(
+            filter(
+                lambda t: isinstance(t[1], Choice)
+                or find_param_choice(t[1]) is not None,
+                zip(self.step_names, self._prepare_steps()),
+            )
+        )
+        return expand_grid(grid)
 
     def pop(self):
         if not self._steps:
@@ -102,19 +121,19 @@ class TransformedData:
 
     @property
     def steps(self):
-        return self._prepare_steps()[0]
+        return self._prepare_steps()
 
     @property
     def param_grid(self):
-        return self._prepare_steps()[1]
+        return self._prepare_grid()
 
     @property
     def grid_search(self):
-        steps, grid = self._prepare_steps()
-        return GridSearchCV(clone(Pipeline(steps)), grid)
+        grid = self._prepare_grid()
+        return GridSearchCV(self._get_pipeline(), grid)
 
     def _get_pipeline(self, with_predictor=True):
-        steps, _ = self._prepare_steps()
+        steps = list(zip(self.step_names, self._prepare_default_steps()))
         if not with_predictor and self._has_predictor():
             steps = steps[:-1]
         return clone(Pipeline(steps))
@@ -141,7 +160,9 @@ class TransformedData:
         predictor_info = ""
         if self._has_predictor():
             n_steps -= 1
-            predictor_info = f" + {self._steps[-1].estimator_.__class__.__name__}"
+            predictor_info = (
+                f" + {first(self._steps[-1]).estimator_.__class__.__name__}"
+            )
         step_descriptions = [f"{i}: {name}" for i, name in enumerate(self.step_names)]
         pipe_description = (
             f"<{self.__class__.__name__}: {n_steps} transformations{predictor_info}>"
