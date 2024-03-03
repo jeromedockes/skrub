@@ -61,7 +61,7 @@ def _contains_choice(estimator):
     return isinstance(estimator, Choice) or (find_param_choice(estimator) is not None)
 
 
-class TransformedData:
+class Pipe:
     def __init__(
         self, input_data=None, n_jobs=None, preview_sample_size=200, random_seed=0
     ):
@@ -76,7 +76,7 @@ class TransformedData:
         self._steps = []
 
     def _with_steps(self, steps):
-        new = TransformedData(
+        new = Pipe(
             input_data=self.input_data,
             n_jobs=self.n_jobs,
             preview_sample_size=self.preview_sample_size,
