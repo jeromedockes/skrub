@@ -1,5 +1,5 @@
 from .. import _dataframe as sbd
-from .._add_estimator_methods import add_estimators_as_methods
+from .._add_estimator_methods import add_estimator_methods
 from ._utils import list_difference, list_intersect
 
 
@@ -60,7 +60,7 @@ def select(df, selector):
     return _select_col_names(df, make_selector(selector).select(df))
 
 
-@add_estimators_as_methods
+@add_estimator_methods
 class Selector:
     def select(self, df, ignore=()):
         raise NotImplementedError()

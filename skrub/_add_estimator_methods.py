@@ -35,7 +35,7 @@ _SKRUB_TRANSFORMERS = [
 ]
 
 
-def _camel_to_snake(name):
+def camel_to_snake(name):
     name = re.sub(
         r"(.)([A-Z][a-z0-9]+)",
         r"\1_\2",
@@ -47,7 +47,7 @@ def _camel_to_snake(name):
 
 def _add_method(namespace_class, estimator_class, method_name=None):
     if method_name is None:
-        method_name = _camel_to_snake(estimator_class.__name__)
+        method_name = camel_to_snake(estimator_class.__name__)
 
     def use(self, *args, **kwargs):
         estimator = estimator_class(*args, **kwargs)
@@ -60,7 +60,7 @@ def _add_method(namespace_class, estimator_class, method_name=None):
     setattr(namespace_class, method_name, use)
 
 
-def add_estimators_as_methods(cls):
+def add_estimator_methods(cls):
     sklearn_estimators = [
         (name, cls) for name, cls in discovery.all_estimators() if name != "Pipeline"
     ]

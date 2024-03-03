@@ -6,7 +6,7 @@ from sklearn.pipeline import Pipeline
 
 from . import _dataframe as sbd
 from . import selectors as s
-from ._add_estimator_methods import _camel_to_snake, add_estimators_as_methods
+from ._add_estimator_methods import add_estimator_methods, camel_to_snake
 from ._choice import (
     Choice,
     choose,
@@ -35,7 +35,7 @@ def _get_name(step):
     return (
         getattr(step, "name_", None)
         or getattr(first(step), "name_", None)
-        or _camel_to_snake(first(step).estimator_.__class__.__name__)
+        or camel_to_snake(first(step).estimator_.__class__.__name__)
     )
 
 
@@ -195,7 +195,7 @@ class Pipe:
 
 
 # Alternative API 2
-@add_estimators_as_methods
+@add_estimator_methods
 class StepCols:
     def __init__(self, pipe, cols):
         self.pipe_ = pipe
