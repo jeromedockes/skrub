@@ -34,7 +34,7 @@ def _pick_names(suggested_names):
 def _get_name(step):
     return (
         getattr(step, "name_", None)
-        or getattr(first(step), "step_name_", None)
+        or getattr(first(step), "name_", None)
         or _camel_to_snake(first(step).estimator_.__class__.__name__)
     )
 
@@ -187,7 +187,7 @@ class TransformedData:
 
     # Alternative API 1
     def use(self, estimator, cols=s.all(), name=None):
-        return self.chain(cols.use(estimator).step_name(name))
+        return self.chain(cols.use(estimator).name(name))
 
     # Alternative API 2
     def cols(self, selector):

@@ -115,17 +115,17 @@ class Selector:
         return OnColumnSelection(transformer, cols=self)
 
     def use(self, estimator):
-        return _Step(cols=self, estimator=estimator)
+        return PipeStep(cols=self, estimator=estimator)
 
 
-class _Step:
+class PipeStep:
     def __init__(self, cols, estimator):
         self.estimator_ = estimator
         self.cols_ = cols
-        self.step_name_ = None
+        self.name_ = None
 
-    def step_name(self, step_name):
-        self.step_name_ = step_name
+    def name(self, new_name):
+        self.name_ = new_name
         return self
 
 
