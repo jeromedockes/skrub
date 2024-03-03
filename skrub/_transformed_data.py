@@ -6,7 +6,7 @@ from sklearn.pipeline import Pipeline
 
 from . import _dataframe as sbd
 from . import selectors as s
-from ._add_estimator_methods import _camel_to_snake
+from ._add_estimator_methods import _camel_to_snake, add_estimators_as_methods
 from ._choice import (
     Choice,
     choose,
@@ -124,7 +124,7 @@ class TransformedData:
     def pop(self):
         if not self._steps:
             return None
-        estimator = _to_estimator(self._steps[:-1], self.n_jobs)
+        estimator = _to_estimator(self._steps[-1], self.n_jobs)
         self._steps = self._steps[:-1]
         return estimator
 
@@ -184,3 +184,25 @@ class TransformedData:
                 f" {e}\nNote:\nYou can inspect pipeline steps with `.steps` or remove"
                 " steps with `.pop()` or `remove()`."
             )
+
+    # Alternative API 1
+    def use(self, estimator, cols=s.all(), name=None):
+        return self.chain(cols.use(estimator).step_name(name))
+
+    # Alternative API 2
+    def cols(self, selector):
+        return StepCols(self, selector)
+
+
+# Alternative API 2
+@add_estimators_as_methods
+class StepCols:
+    def __init__(self, pipe, cols):
+        self.pipe_ = pipe
+        self.cols_ = s.make_selector(cols)
+
+    def use(self, estimator):
+        return self.pipe_.chain(self.cols_.use(estimator))
+
+    def __repr__(self):
+        return f"<TODO columns: {self.cols_}>"
