@@ -86,7 +86,7 @@ class OnColumnSelection(TransformerMixin, BaseEstimator, auto_wrap_output_keys=(
 
     def __repr__(self) -> str:
         t = self.transformer
-        return f"<Transformer: {t!r}.transform(X[{self.cols}])>"
+        return f"<{t!r}.transform(X[{self.cols}])>"
 
     def fit_transform(self, X, y=None):
         self.all_inputs_ = sbd.column_names(X)
