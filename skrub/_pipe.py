@@ -1,3 +1,4 @@
+import io
 import itertools
 
 from sklearn.base import clone
@@ -159,6 +160,10 @@ class Pipe:
     def param_grid_description(self):
         return grid_description(self._get_param_grid())
 
+    @property
+    def pipeline_description(self):
+        return _describe_pipeline(zip(self._get_step_names(), self._steps))
+
     def __repr__(self):
         n_steps = len(self._steps)
         predictor_info = ""
@@ -207,3 +212,29 @@ class StepCols:
 
     def __repr__(self):
         return f"<TODO columns: {self.cols_}>"
+
+
+def _describe_choice(name, choice, buf):
+    buf.write(f"{name}:\n")
+    buf.write("    choose:\n")
+    dash = "        - "
+    indent = "          "
+    for opt in choice.options_:
+        buf.write(f"{dash}cols: {opt.cols_}\n")
+        buf.write(f"{indent}estimator: {opt.estimator_}\n")
+
+
+def _describe_step(name, step, buf):
+    buf.write(f"{name}:\n")
+    buf.write(f"    cols: {step.cols_}\n")
+    buf.write(f"    estimator: {step.estimator_}\n")
+
+
+def _describe_pipeline(named_steps):
+    buf = io.StringIO()
+    for name, step in named_steps:
+        if isinstance(step, Choice):
+            _describe_choice(name, step, buf)
+        else:
+            _describe_step(name, step, buf)
+    return buf.getvalue()
