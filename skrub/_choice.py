@@ -1,3 +1,4 @@
+import io
 from collections.abc import Sequence
 
 from sklearn.base import clone
@@ -142,26 +143,30 @@ def show_expanded_grid(grid):
     ]
 
 
-def print_expanded_grid(grid):
+def expanded_grid_description(grid):
+    buf = io.StringIO()
     for subgrid in show_expanded_grid(grid):
         prefix = "- "
         for k, v in subgrid:
-            print(f"{prefix}{k!r}: {v}")
+            buf.write(f"{prefix}{k!r}: {v}\n")
             prefix = "  "
-        print()
+        buf.write("\n")
+    return buf.getvalue()
 
 
-def print_grid(grid):
+def grid_description(grid):
+    buf = io.StringIO()
     for subgrid in grid:
         prefix = "- "
         for k, v in subgrid.items():
             if v.name_ is not None:
                 k = v.name_
             if len(v.options_) == 1:
-                print(f"{prefix}{k!r}: {v.options_[0]}")
+                buf.write(f"{prefix}{k!r}: {v.options_[0]}\n")
             else:
-                print(f"{prefix}{k!r}:")
+                buf.write(f"{prefix}{k!r}:\n")
                 for opt in v.options_:
-                    print(f"      - {opt}")
+                    buf.write(f"      - {opt}\n")
             prefix = "  "
-        print()
+        buf.write("\n")
+    return buf.getvalue()

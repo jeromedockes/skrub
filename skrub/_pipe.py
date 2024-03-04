@@ -13,7 +13,7 @@ from ._choice import (
     expand_grid,
     find_param_choice,
     first,
-    print_grid,
+    grid_description,
     set_params_to_first,
 )
 
@@ -155,8 +155,9 @@ class Pipe:
             return sample_data
         return pipeline.fit_transform(sample_data)
 
-    def print_param_grid(self):
-        print_grid(self._get_param_grid())
+    @property
+    def param_grid_description(self):
+        return grid_description(self._get_param_grid())
 
     def __repr__(self):
         n_steps = len(self._steps)
