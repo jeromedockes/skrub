@@ -150,7 +150,6 @@ def expanded_grid_description(grid):
         for k, v in subgrid:
             buf.write(f"{prefix}{k!r}: {v}\n")
             prefix = "  "
-        buf.write("\n")
     return buf.getvalue()
 
 
@@ -168,5 +167,4 @@ def grid_description(grid):
                 for opt in v.options_:
                     buf.write(f"      - {opt}\n")
             prefix = "  "
-        buf.write("\n")
     return buf.getvalue()

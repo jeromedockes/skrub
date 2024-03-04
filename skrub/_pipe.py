@@ -44,6 +44,9 @@ def _to_step(obj):
     if isinstance(obj, Choice):
         return choose(*map(_to_step, obj.options_)).name(obj.name_)
     if hasattr(obj, "estimator_"):
+        if isinstance((c := obj.estimator_), Choice):
+            name = getattr(obj, "name_", None) or getattr(c, "name_", None)
+            return choose(*map(obj.cols_.use, c.options_)).name(name)
         return obj
     return s.all().use(obj)
 
@@ -76,7 +79,7 @@ class Pipe:
         self.random_seed = random_seed
         self._steps = []
 
-    def _with_steps(self, steps):
+    def _with_prepared_steps(self, steps):
         new = Pipe(
             input_data=self.input_data,
             n_jobs=self.n_jobs,
@@ -120,7 +123,7 @@ class Pipe:
         return GridSearchCV(self._get_pipeline(), grid)
 
     def chain(self, *steps):
-        return self._with_steps(self._steps + list(map(_to_step, steps)))
+        return self._with_prepared_steps(self._steps + list(map(_to_step, steps)))
 
     def pop(self):
         if not self._steps:
@@ -196,7 +199,7 @@ class Pipe:
         return self.chain(cols.use(estimator).name(name))
 
     # Alternative API 2
-    def cols(self, selector):
+    def cols(self, selector=s.all()):
         return StepCols(self, selector)
 
 
