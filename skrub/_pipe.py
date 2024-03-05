@@ -196,7 +196,11 @@ class Pipe:
 
     # Alternative API 1
     def use(self, estimator, cols=s.all(), name=None):
-        return self.chain(cols.use(estimator).name(name))
+        return self.chain(s.make_selector(cols).use(estimator).name(name))
+
+    # Alternative API 1
+    def choose(self, *options, cols=s.all(), name=None):
+        return self.chain(s.make_selector(cols).use(choose(*options).name(name)))
 
     # Alternative API 2
     def cols(self, selector=s.all()):
@@ -212,6 +216,9 @@ class StepCols:
 
     def use(self, estimator):
         return self.pipe_.chain(self.cols_.use(estimator))
+
+    def choose(self, *options):
+        return self.pipe_.chain(self.cols_.use(choose(*options)))
 
     def __repr__(self):
         return f"<TODO columns: {self.cols_}>"
