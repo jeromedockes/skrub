@@ -70,6 +70,7 @@ __all__ = [
     "unique",
     "where",
     "sample",
+    "head",
     "replace",
     "replace_regex",
 ]
@@ -787,6 +788,21 @@ def _sample_pandas(obj, n, seed=None):
 @sample.specialize("polars")
 def _sample_polars(obj, n, seed=None):
     return obj.sample(n=n, seed=seed, with_replacement=False)
+
+
+@dispatch
+def head(df, n=5):
+    raise NotImplementedError()
+
+
+@head.specialize("pandas")
+def _head_pandas(df, n=5):
+    return df.head(n=5)
+
+
+@head.specialize("polars")
+def _head_polars(df, n=5):
+    return df.head(n=5)
 
 
 @dispatch

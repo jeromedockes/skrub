@@ -1,5 +1,6 @@
 import io
 import itertools
+import traceback
 
 from sklearn.base import clone
 from sklearn.model_selection import GridSearchCV
@@ -132,12 +133,6 @@ class Pipe:
         self._steps = self._steps[:-1]
         return estimator
 
-    def remove(self, step=-1):
-        if isinstance(step, str):
-            step = self._get_step_names().index(step)
-        del self._steps[step]
-        return self
-
     @property
     def grid_search(self):
         return self._get_grid_search()
@@ -145,6 +140,22 @@ class Pipe:
     @property
     def pipeline(self):
         return self._get_pipeline()
+
+    def _transform_preview(self, df):
+        pipeline = self._get_pipeline(False)
+        if not pipeline.steps:
+            return df
+        for step_name, transformer in pipeline.steps:
+            try:
+                df = transformer.fit_transform(df)
+            except Exception as e:
+                e_repr = "\n    ".join(traceback.format_exception_only(e))
+                raise RuntimeError(
+                    f"Transformation failed at step '{step_name}'.\n"
+                    f"Input data for this step:\n{df}\n"
+                    f"Error message:\n    {e_repr}"
+                ) from e
+        return df
 
     def sample(self, n=None):
         if n is None:
@@ -154,10 +165,14 @@ class Pipe:
         sample_data = sbd.sample(
             self.input_data, min(n, self.input_data_shape[0]), seed=self.random_seed
         )
-        pipeline = self._get_pipeline(False)
-        if not pipeline.steps:
-            return sample_data
-        return pipeline.fit_transform(sample_data)
+        return self._transform_preview(sample_data)
+
+    def head(self, n=None):
+        if self.input_data is None:
+            return None
+        n = self.preview_sample_size if n is None else n
+        sample_data = sbd.head(self.input_data, n=n)
+        return self._transform_preview(sample_data)
 
     @property
     def param_grid_description(self):
@@ -189,9 +204,11 @@ class Pipe:
             return f"{pipe_description}\nSample of transformed data:\n{data_repr}"
         except Exception as e:
             return (
-                f"{pipe_description}\nTransform failed:\n    {type(e).__name__}:"
-                f" {e}\nNote:\nYou can inspect pipeline steps with `.steps` or remove"
-                " steps with `.pop()` or `remove()`."
+                f"{pipe_description}\n"
+                f"{e}Note:\n"
+                "    Use `.sample()` to trigger the error again "
+                "and see the full traceback.\n"
+                "    You can remove steps from the pipeline with `.pop()`."
             )
 
     # Alternative API 1
