@@ -86,6 +86,9 @@ class OnColumnSelection(TransformerMixin, BaseEstimator, auto_wrap_output_keys=(
 
     def __repr__(self) -> str:
         t = self.transformer
+        # TODO cleanup
+        if self.cols.__class__.__name__ == "All":
+            return repr(t)
         return f"<{t!r}.transform(X[{self.cols}])>"
 
     def fit_transform(self, X, y=None):

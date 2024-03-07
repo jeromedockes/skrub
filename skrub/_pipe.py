@@ -13,6 +13,7 @@ from ._choice import (
     Choice,
     choose,
     expand_grid,
+    expanded_grid_item_description,
     find_param_choice,
     first,
     grid_description,
@@ -174,6 +175,16 @@ class Pipe:
         sample_data = sbd.head(self.input_data, n=n)
         return self._transform_preview(sample_data)
 
+    def get_skrubview_report(self, order_by=None, sampling_method="sample", n=None):
+        try:
+            import skrubview
+        except ImportError:
+            print("Please install skrubview")
+            return None
+
+        data = self.sample(n) if sampling_method == "sample" else self.head(n)
+        return skrubview.Report(data, order_by=order_by)
+
     @property
     def param_grid_description(self):
         return grid_description(self._get_param_grid())
@@ -181,6 +192,11 @@ class Pipe:
     @property
     def pipeline_description(self):
         return _describe_pipeline(zip(self._get_step_names(), self._steps))
+
+    def get_best_params_description(self, fitted_grid_search):
+        return expanded_grid_item_description(
+            self._get_param_grid(), fitted_grid_search.best_index_
+        )
 
     def __repr__(self):
         n_steps = len(self._steps)

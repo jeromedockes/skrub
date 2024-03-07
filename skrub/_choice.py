@@ -143,12 +143,17 @@ def show_expanded_grid(grid):
     ]
 
 
+def expanded_grid_item_description(grid, idx):
+    subgrid = show_expanded_grid(grid)[idx]
+    return "".join(f"{k!r}: {v!r}\n" for k, v in subgrid)
+
+
 def expanded_grid_description(grid):
     buf = io.StringIO()
     for subgrid in show_expanded_grid(grid):
         prefix = "- "
         for k, v in subgrid:
-            buf.write(f"{prefix}{k!r}: {v}\n")
+            buf.write(f"{prefix}{k!r}: {v!r}\n")
             prefix = "  "
     return buf.getvalue()
 
@@ -161,10 +166,10 @@ def grid_description(grid):
             if v.name_ is not None:
                 k = v.name_
             if len(v.options_) == 1:
-                buf.write(f"{prefix}{k!r}: {v.options_[0]}\n")
+                buf.write(f"{prefix}{k!r}: {v.options_[0]!r}\n")
             else:
                 buf.write(f"{prefix}{k!r}:\n")
                 for opt in v.options_:
-                    buf.write(f"      - {opt}\n")
+                    buf.write(f"      - {opt!r}\n")
             prefix = "  "
     return buf.getvalue()
