@@ -105,7 +105,9 @@ class Selector:
             return _make_selector_in_expr(other) ^ self
         return XOr(other, self)
 
-    def make_transformer(self, transformer, n_jobs=None, columnwise="auto"):
+    def make_transformer(
+        self, transformer, keep_original=False, n_jobs=None, columnwise="auto"
+    ):
         from .._on_column_selection import OnColumnSelection
         from .._on_each_column import OnEachColumn
 
@@ -113,8 +115,10 @@ class Selector:
             columnwise = hasattr(transformer, "__single_column_transformer__")
 
         if columnwise:
-            return OnEachColumn(transformer, cols=self, n_jobs=n_jobs)
-        return OnColumnSelection(transformer, cols=self)
+            return OnEachColumn(
+                transformer, keep_original=keep_original, cols=self, n_jobs=n_jobs
+            )
+        return OnColumnSelection(transformer, keep_original=keep_original, cols=self)
 
     def use(self, estimator):
         return PipeStep(cols=self, estimator=estimator)
@@ -128,9 +132,14 @@ class PipeStep:
         self.estimator_ = estimator
         self.cols_ = cols
         self.name_ = None
+        self.keep_original_ = False
 
     def name(self, new_name):
         self.name_ = new_name
+        return self
+
+    def keep_original(self):
+        self.keep_original_ = True
         return self
 
 

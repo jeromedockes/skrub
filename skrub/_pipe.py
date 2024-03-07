@@ -60,7 +60,9 @@ def _to_estimator(step, n_jobs):
         )
     if hasattr(step.estimator_, "predict"):
         return step.estimator_
-    return step.cols_.make_transformer(step.estimator_, n_jobs=n_jobs)
+    return step.cols_.make_transformer(
+        step.estimator_, keep_original=step.keep_original_, n_jobs=n_jobs
+    )
 
 
 def _contains_choice(estimator):

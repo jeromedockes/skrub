@@ -80,9 +80,10 @@ class OnColumnSelection(TransformerMixin, BaseEstimator, auto_wrap_output_keys=(
     PCA(n_components=2)
     """
 
-    def __init__(self, transformer, cols=_selectors.all()):
+    def __init__(self, transformer, cols=_selectors.all(), keep_original=False):
         self.transformer = transformer
         self.cols = cols
+        self.keep_original = keep_original
 
     def __repr__(self) -> str:
         t = self.transformer
@@ -95,7 +96,10 @@ class OnColumnSelection(TransformerMixin, BaseEstimator, auto_wrap_output_keys=(
         self.all_inputs_ = sbd.column_names(X)
         self._columns = _selectors.make_selector(self.cols).select(X)
         to_transform = _selectors.select(X, self._columns)
-        passthrough = _selectors.select(X, _selectors.inv(self._columns))
+        if self.keep_original:
+            passthrough = X
+        else:
+            passthrough = _selectors.select(X, _selectors.inv(self._columns))
         passthrough_names = sbd.column_names(passthrough)
         if self._columns:
             self.transformer_ = clone(self.transformer)
@@ -128,7 +132,10 @@ class OnColumnSelection(TransformerMixin, BaseEstimator, auto_wrap_output_keys=(
         # do the selection even if self._columns is empty to raise if X doesn't
         # have the right columns
         to_transform = _selectors.select(X, self._columns)
-        passthrough = _selectors.select(X, _selectors.inv(self._columns))
+        if self.keep_original:
+            passthrough = X
+        else:
+            passthrough = _selectors.select(X, _selectors.inv(self._columns))
         if not self._columns:
             return passthrough
         transformed = self.transformer_.transform(to_transform)

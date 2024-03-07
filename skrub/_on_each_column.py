@@ -131,9 +131,12 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
     {'birthday': ToDatetime()}
     """
 
-    def __init__(self, transformer, cols=_selectors.all(), n_jobs=None):
+    def __init__(
+        self, transformer, cols=_selectors.all(), keep_original=False, n_jobs=None
+    ):
         self.transformer = transformer
         self.cols = cols
+        self.keep_original = keep_original
         self.n_jobs = n_jobs
 
     def __repr__(self) -> str:
@@ -152,7 +155,12 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
         parallel = Parallel(n_jobs=self.n_jobs)
         func = delayed(_fit_transform_column)
         results = parallel(
-            func(sbd.col(X, col_name), self._columns, self.transformer)
+            func(
+                sbd.col(X, col_name),
+                self._columns,
+                self.transformer,
+                self.keep_original,
+            )
             for col_name in all_columns
         )
         return self._process_fit_transform_results(results, X)
@@ -188,7 +196,11 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
         parallel = Parallel(n_jobs=self.n_jobs)
         func = delayed(_transform_column)
         outputs = parallel(
-            func(sbd.col(X, col_name), self.transformers_.get(col_name))
+            func(
+                sbd.col(X, col_name),
+                self.transformers_.get(col_name),
+                self.keep_original,
+            )
             for col_name in sbd.column_names(X)
         )
         transformed_columns = list(itertools.chain(*outputs))
@@ -205,7 +217,7 @@ def _prepare_transformer_input(transformer, column):
     return sbd.make_dataframe_like(column, [column])
 
 
-def _fit_transform_column(column, columns_to_handle, transformer):
+def _fit_transform_column(column, columns_to_handle, transformer, keep_original):
     col_name = sbd.name(column)
     if col_name not in columns_to_handle:
         return col_name, [column], None
@@ -218,15 +230,20 @@ def _fit_transform_column(column, columns_to_handle, transformer):
     if output is NotImplemented:
         return col_name, [column], None
     output_cols = sbd.to_column_list(output)
+    if keep_original:
+        output_cols = [column] + output_cols
     return col_name, output_cols, transformer
 
 
-def _transform_column(column, transformer):
+def _transform_column(column, transformer, keep_original):
     if transformer is None:
         return [column]
     transformer_input = _prepare_transformer_input(transformer, column)
     output = transformer.transform(transformer_input)
-    return sbd.to_column_list(output)
+    output_cols = sbd.to_column_list(output)
+    if keep_original:
+        output_cols = [column] + output_cols
+    return output_cols
 
 
 def _column_names(column_list):
