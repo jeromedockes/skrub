@@ -125,6 +125,13 @@ class Pipe:
         return GridSearchCV(self._get_pipeline(), grid)
 
     def chain(self, *steps):
+        if self._has_predictor():
+            pred_name = self._get_step_names()[-1]
+            raise ValueError(
+                f"This pipeline already has a final predictor: {pred_name!r}. "
+                "Therefore we cannot add more steps. "
+                "You can remove the final step with '.pop()'."
+            )
         return self._with_prepared_steps(self._steps + list(map(_to_step, steps)))
 
     def pop(self):
@@ -134,12 +141,10 @@ class Pipe:
         self._steps = self._steps[:-1]
         return estimator
 
-    @property
-    def grid_search(self):
+    def get_grid_search(self):
         return self._get_grid_search()
 
-    @property
-    def pipeline(self):
+    def get_pipeline(self):
         return self._get_pipeline()
 
     def _transform_preview(self, df, select_created_by_last_step=False):
@@ -187,12 +192,10 @@ class Pipe:
         data = self.sample(n) if sampling_method == "sample" else self.head(n)
         return skrubview.Report(data, order_by=order_by)
 
-    @property
-    def param_grid_description(self):
+    def get_param_grid_description(self):
         return grid_description(self._get_param_grid())
 
-    @property
-    def pipeline_description(self):
+    def get_pipeline_description(self):
         return _describe_pipeline(zip(self._get_step_names(), self._steps))
 
     def get_best_params_description(self, fitted_grid_search):
