@@ -147,10 +147,14 @@ class Pipe:
     def get_pipeline(self):
         return self._get_pipeline()
 
-    def _transform_preview(self, df, select_created_by_last_step=False):
+    def _transform_preview(self, sampling_method, n=None):
+        if self.input_data is None:
+            return None
+        n = self.preview_sample_size if n is None else n
+        df = self._get_sampler(sampling_method)(n)
         pipeline = self._get_pipeline(False)
         if not pipeline.steps:
-            return df
+            return df, []
         for step_name, transformer in pipeline.steps:
             try:
                 df = transformer.fit_transform(df)
@@ -161,35 +165,45 @@ class Pipe:
                     f"Input data for this step:\n{df}\n"
                     f"Error message:\n    {e_repr}"
                 ) from e
-        if select_created_by_last_step:
-            df = s.select(df, pipeline.steps[-1][1].created_outputs_)
-        return df
+        return df, pipeline.steps[-1][1].created_outputs_
 
-    def sample(self, n=None, select_created_by_last_step=False):
-        if n is None:
-            n = self.preview_sample_size
-        if self.input_data is None:
-            return None
-        sample_data = sbd.sample(
+    def _random_sample(self, n):
+        return sbd.sample(
             self.input_data, min(n, self.input_data_shape[0]), seed=self.random_seed
         )
-        return self._transform_preview(sample_data, select_created_by_last_step)
 
-    def head(self, n=None, select_created_by_last_step=False):
-        if self.input_data is None:
+    def _head_sample(self, n):
+        return sbd.head(self.input_data, n=n)
+
+    def _get_sampler(self, sampling_method):
+        return {"head": self._head_sample, "random": self._random_sample}[
+            sampling_method
+        ]
+
+    def sample(self, n=None, last_step_only=False, sampling_method="random"):
+        if (transform_result := self._transform_preview(sampling_method, n=n)) is None:
             return None
-        n = self.preview_sample_size if n is None else n
-        sample_data = sbd.head(self.input_data, n=n)
-        return self._transform_preview(sample_data, select_created_by_last_step)
+        data, last_step_cols = transform_result
+        if last_step_only:
+            data = s.select(data, last_step_cols)
+        return data
 
-    def get_skrubview_report(self, order_by=None, sampling_method="sample", n=None):
+    def get_skrubview_report(
+        self, order_by=None, sampling_method="random", n=None, last_step_only=False
+    ):
         try:
             import skrubview
         except ImportError:
             print("Please install skrubview")
             return None
 
-        data = self.sample(n) if sampling_method == "sample" else self.head(n)
+        if (transform_result := self._transform_preview(sampling_method, n=n)) is None:
+            return None
+        data, last_step_cols = transform_result
+        if last_step_only:
+            data = s.select(
+                data, last_step_cols + ([] if order_by is None else [order_by])
+            )
         return skrubview.Report(data, order_by=order_by)
 
     def get_param_grid_description(self):
