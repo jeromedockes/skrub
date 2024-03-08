@@ -797,12 +797,12 @@ def head(df, n=5):
 
 @head.specialize("pandas")
 def _head_pandas(df, n=5):
-    return df.head(n=5)
+    return df.head(n=n)
 
 
 @head.specialize("polars")
 def _head_polars(df, n=5):
-    return df.head(n=5)
+    return df.head(n=n)
 
 
 @dispatch
