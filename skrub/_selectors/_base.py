@@ -106,7 +106,12 @@ class Selector:
         return XOr(other, self)
 
     def make_transformer(
-        self, transformer, keep_original=False, n_jobs=None, columnwise="auto"
+        self,
+        transformer,
+        keep_original=False,
+        rename_columns="{}",
+        n_jobs=None,
+        columnwise="auto",
     ):
         from .._on_column_selection import OnColumnSelection
         from .._on_each_column import OnEachColumn
@@ -116,9 +121,18 @@ class Selector:
 
         if columnwise:
             return OnEachColumn(
-                transformer, keep_original=keep_original, cols=self, n_jobs=n_jobs
+                transformer,
+                keep_original=keep_original,
+                rename_columns=rename_columns,
+                cols=self,
+                n_jobs=n_jobs,
             )
-        return OnColumnSelection(transformer, keep_original=keep_original, cols=self)
+        return OnColumnSelection(
+            transformer,
+            keep_original=keep_original,
+            rename_columns=rename_columns,
+            cols=self,
+        )
 
     def use(self, estimator):
         return PipeStep(cols=self, estimator=estimator)
@@ -133,6 +147,7 @@ class PipeStep:
         self.cols_ = cols
         self.name_ = None
         self.keep_original_ = False
+        self.rename_columns_ = "{}"
 
     def name(self, new_name):
         self.name_ = new_name
@@ -141,6 +156,18 @@ class PipeStep:
     def keep_original(self):
         self.keep_original_ = True
         return self
+
+    def rename_columns(self, new_rename_columns):
+        self.rename_columns_ = new_rename_columns
+        return self
+
+    def _make_transformer(self, n_jobs=1):
+        return self.cols_.make_transformer(
+            self.estimator_,
+            keep_original=self.keep_original_,
+            rename_columns=self.rename_columns_,
+            n_jobs=n_jobs,
+        )
 
 
 class All(Selector):

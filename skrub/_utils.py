@@ -183,3 +183,9 @@ def check_duplicated_column_names(column_names, table_name=None):
             f"Table {table_name} has duplicate column names: {duplicates}."
             " Please make sure column names are unique."
         )
+
+
+def renaming_func(renaming):
+    if isinstance(renaming, str):
+        return renaming.format
+    return renaming

@@ -60,9 +60,7 @@ def _to_estimator(step, n_jobs):
         )
     if hasattr(step.estimator_, "predict"):
         return step.estimator_
-    return step.cols_.make_transformer(
-        step.estimator_, keep_original=step.keep_original_, n_jobs=n_jobs
-    )
+    return step._make_transformer(n_jobs=n_jobs)
 
 
 def _contains_choice(estimator):
@@ -230,12 +228,21 @@ class Pipe:
             )
 
     # Alternative API 1
-    def use(self, estimator, cols=s.all(), name=None):
-        return self.chain(s.make_selector(cols).use(estimator).name(name))
+    def use(self, estimator, cols=s.all(), name=None, rename_columns="{}"):
+        return self.chain(
+            s.make_selector(cols)
+            .use(estimator)
+            .name(name)
+            .rename_columns(rename_columns)
+        )
 
     # Alternative API 1
-    def choose(self, *options, cols=s.all(), name=None):
-        return self.chain(s.make_selector(cols).use(choose(*options).name(name)))
+    def choose(self, *options, cols=s.all(), name=None, rename_columns="{}"):
+        return self.chain(
+            s.make_selector(cols).use(
+                choose(*options).name(name).rename_columns(rename_columns)
+            )
+        )
 
     # Alternative API 2
     def cols(self, selector=s.all()):

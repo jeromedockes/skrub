@@ -6,6 +6,7 @@ from sklearn.base import BaseEstimator, TransformerMixin, clone
 from . import _dataframe as sbd
 from . import _selectors
 from ._join_utils import pick_column_names
+from ._utils import renaming_func
 
 
 class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
@@ -132,11 +133,17 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
     """
 
     def __init__(
-        self, transformer, cols=_selectors.all(), keep_original=False, n_jobs=None
+        self,
+        transformer,
+        cols=_selectors.all(),
+        keep_original=False,
+        rename_columns="{}",
+        n_jobs=None,
     ):
         self.transformer = transformer
         self.cols = cols
         self.keep_original = keep_original
+        self.rename_columns = rename_columns
         self.n_jobs = n_jobs
 
     def __repr__(self) -> str:
@@ -159,7 +166,6 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
                 sbd.col(X, col_name),
                 self._columns,
                 self.transformer,
-                self.keep_original,
             )
             for col_name in all_columns
         )
@@ -176,14 +182,20 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
         for input_name, output_cols, transformer in results:
             if transformer is not None:
                 suggested_names = _column_names(output_cols)
+                suggested_names = list(
+                    map(renaming_func(self.rename_columns), suggested_names)
+                )
                 output_names = pick_column_names(
-                    suggested_names, forbidden_names - {input_name}
+                    suggested_names,
+                    forbidden_names - (set() if self.keep_original else {input_name}),
                 )
                 output_cols = _rename_columns(output_cols, output_names)
                 forbidden_names.update(output_names)
                 self.transformers_[input_name] = transformer
                 self.input_to_outputs_[input_name] = output_names
                 self.output_to_input_.update(**{o: input_name for o in output_names})
+                if self.keep_original:
+                    output_cols = [sbd.col(X, input_name)] + output_cols
             transformed_columns.extend(output_cols)
 
         self.all_outputs_ = _column_names(transformed_columns)
@@ -199,11 +211,14 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
             func(
                 sbd.col(X, col_name),
                 self.transformers_.get(col_name),
-                self.keep_original,
             )
             for col_name in sbd.column_names(X)
         )
-        transformed_columns = list(itertools.chain(*outputs))
+        transformed_columns = []
+        for col_name, col_outputs in zip(sbd.column_names(X), outputs):
+            if self.transformers_.get(col_name) is not None and self.keep_original:
+                col_outputs = [sbd.col(X, col_name)] + col_outputs
+            transformed_columns.extend(col_outputs)
         transformed_columns = _rename_columns(transformed_columns, self.all_outputs_)
         return sbd.make_dataframe_like(X, transformed_columns)
 
@@ -217,7 +232,7 @@ def _prepare_transformer_input(transformer, column):
     return sbd.make_dataframe_like(column, [column])
 
 
-def _fit_transform_column(column, columns_to_handle, transformer, keep_original):
+def _fit_transform_column(column, columns_to_handle, transformer):
     col_name = sbd.name(column)
     if col_name not in columns_to_handle:
         return col_name, [column], None
@@ -230,19 +245,15 @@ def _fit_transform_column(column, columns_to_handle, transformer, keep_original)
     if output is NotImplemented:
         return col_name, [column], None
     output_cols = sbd.to_column_list(output)
-    if keep_original:
-        output_cols = [column] + output_cols
     return col_name, output_cols, transformer
 
 
-def _transform_column(column, transformer, keep_original):
+def _transform_column(column, transformer):
     if transformer is None:
         return [column]
     transformer_input = _prepare_transformer_input(transformer, column)
     output = transformer.transform(transformer_input)
     output_cols = sbd.to_column_list(output)
-    if keep_original:
-        output_cols = [column] + output_cols
     return output_cols
 
 

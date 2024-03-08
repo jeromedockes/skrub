@@ -3,6 +3,7 @@ from sklearn.base import BaseEstimator, TransformerMixin, clone
 from . import _dataframe as sbd
 from . import _selectors
 from ._join_utils import pick_column_names
+from ._utils import renaming_func
 
 
 class OnColumnSelection(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
@@ -80,10 +81,17 @@ class OnColumnSelection(TransformerMixin, BaseEstimator, auto_wrap_output_keys=(
     PCA(n_components=2)
     """
 
-    def __init__(self, transformer, cols=_selectors.all(), keep_original=False):
+    def __init__(
+        self,
+        transformer,
+        cols=_selectors.all(),
+        keep_original=False,
+        rename_columns="{}",
+    ):
         self.transformer = transformer
         self.cols = cols
         self.keep_original = keep_original
+        self.rename_columns = rename_columns
 
     def __repr__(self) -> str:
         t = self.transformer
@@ -107,8 +115,12 @@ class OnColumnSelection(TransformerMixin, BaseEstimator, auto_wrap_output_keys=(
                 df_module_name = sbd.dataframe_module_name(X)
                 self.transformer_.set_output(transform=df_module_name)
             transformed = self.transformer_.fit_transform(to_transform, y)
+            suggested_names = sbd.column_names(transformed)
+            suggested_names = list(
+                map(renaming_func(self.rename_columns), suggested_names)
+            )
             self._transformed_output_names = pick_column_names(
-                sbd.column_names(transformed), forbidden_names=passthrough_names
+                suggested_names, forbidden_names=passthrough_names
             )
             transformed = sbd.set_column_names(
                 transformed, self._transformed_output_names
