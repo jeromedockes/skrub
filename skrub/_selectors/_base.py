@@ -153,8 +153,8 @@ class PipeStep:
         self.name_ = new_name
         return self
 
-    def keep_original(self):
-        self.keep_original_ = True
+    def keep_original(self, keep=True):
+        self.keep_original_ = keep
         return self
 
     def rename_columns(self, new_rename_columns):

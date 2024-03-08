@@ -142,7 +142,7 @@ class Pipe:
     def pipeline(self):
         return self._get_pipeline()
 
-    def _transform_preview(self, df):
+    def _transform_preview(self, df, select_created_by_last_step=False):
         pipeline = self._get_pipeline(False)
         if not pipeline.steps:
             return df
@@ -156,9 +156,11 @@ class Pipe:
                     f"Input data for this step:\n{df}\n"
                     f"Error message:\n    {e_repr}"
                 ) from e
+        if select_created_by_last_step:
+            df = s.select(df, pipeline.steps[-1][1].created_outputs_)
         return df
 
-    def sample(self, n=None):
+    def sample(self, n=None, select_created_by_last_step=False):
         if n is None:
             n = self.preview_sample_size
         if self.input_data is None:
@@ -166,14 +168,14 @@ class Pipe:
         sample_data = sbd.sample(
             self.input_data, min(n, self.input_data_shape[0]), seed=self.random_seed
         )
-        return self._transform_preview(sample_data)
+        return self._transform_preview(sample_data, select_created_by_last_step)
 
-    def head(self, n=None):
+    def head(self, n=None, select_created_by_last_step=False):
         if self.input_data is None:
             return None
         n = self.preview_sample_size if n is None else n
         sample_data = sbd.head(self.input_data, n=n)
-        return self._transform_preview(sample_data)
+        return self._transform_preview(sample_data, select_created_by_last_step)
 
     def get_skrubview_report(self, order_by=None, sampling_method="sample", n=None):
         try:
@@ -228,20 +230,36 @@ class Pipe:
             )
 
     # Alternative API 1
-    def use(self, estimator, cols=s.all(), name=None, rename_columns="{}"):
+    def use(
+        self,
+        estimator,
+        cols=s.all(),
+        name=None,
+        keep_original=False,
+        rename_columns="{}",
+    ):
         return self.chain(
             s.make_selector(cols)
             .use(estimator)
             .name(name)
+            .keep_original(keep_original)
             .rename_columns(rename_columns)
         )
 
     # Alternative API 1
-    def choose(self, *options, cols=s.all(), name=None, rename_columns="{}"):
+    def choose(
+        self,
+        *options,
+        cols=s.all(),
+        name=None,
+        keep_original=False,
+        rename_columns="{}",
+    ):
         return self.chain(
-            s.make_selector(cols).use(
-                choose(*options).name(name).rename_columns(rename_columns)
-            )
+            s.make_selector(cols)
+            .use(choose(*options).name(name))
+            .keep_original(keep_original)
+            .rename_columns(rename_columns)
         )
 
     # Alternative API 2
