@@ -11,14 +11,23 @@ from . import selectors as s
 from ._add_estimator_methods import add_estimator_methods, camel_to_snake
 from ._choice import (
     Choice,
+    Option,
     choose,
+    contains_choice,
     expand_grid,
-    expanded_grid_item_description,
-    find_param_choice,
-    first,
     grid_description,
+    params_description,
     set_params_to_first,
+    unwrap,
+    unwrap_first,
 )
+
+
+class NamedParamPipeline(Pipeline):
+    def set_params(self, **params):
+        params = {k: unwrap(v) for k, v in params.items()}
+        super().set_params(**params)
+        return self
 
 
 def _pick_names(suggested_names):
@@ -37,34 +46,36 @@ def _pick_names(suggested_names):
 def _get_name(step):
     return (
         getattr(step, "name_", None)
-        or getattr(first(step), "name_", None)
-        or camel_to_snake(first(step).estimator_.__class__.__name__)
+        or getattr(step.estimator_, "name_", None)
+        or camel_to_snake(unwrap_first(step.estimator_).__class__.__name__)
     )
 
 
 def _to_step(obj):
-    if isinstance(obj, Choice):
-        return choose(*map(_to_step, obj.options_)).name(obj.name_)
     if hasattr(obj, "estimator_"):
-        if isinstance((c := obj.estimator_), Choice):
-            name = getattr(obj, "name_", None) or getattr(c, "name_", None)
-            return choose(*map(obj.cols_.use, c.options_)).name(name)
         return obj
     return s.all().use(obj)
 
 
 def _to_estimator(step, n_jobs):
-    if isinstance(step, Choice):
-        return choose(*(_to_estimator(opt, n_jobs) for opt in step.options_)).name(
-            step.name_
-        )
-    if hasattr(step.estimator_, "predict"):
-        return step.estimator_
+    estimator = step.estimator_
+    if isinstance(estimator, Choice):
+        estimator_choices = []
+        for opt in estimator.options_:
+            if hasattr(opt.value_, "predict"):
+                estimator_choices.append(Option(opt.value_, opt.name_, opt.in_choice_))
+            else:
+                estimator_choices.append(
+                    Option(
+                        step._make_transformer(opt.value_, n_jobs=n_jobs),
+                        opt.name_,
+                        opt.in_choice_,
+                    )
+                )
+        return Choice(estimator_choices, name=estimator.name_)
+    if hasattr(estimator, "predict"):
+        return estimator
     return step._make_transformer(n_jobs=n_jobs)
-
-
-def _contains_choice(estimator):
-    return isinstance(estimator, Choice) or (find_param_choice(estimator) is not None)
 
 
 class Pipe:
@@ -94,7 +105,7 @@ class Pipe:
     def _has_predictor(self):
         if not self._steps:
             return False
-        return hasattr(first(self._steps[-1]).estimator_, "predict")
+        return hasattr(unwrap_first(self._steps[-1].estimator_), "predict")
 
     def _get_step_names(self):
         suggested_names = [_get_name(step) for step in self._steps]
@@ -104,13 +115,16 @@ class Pipe:
         return [_to_estimator(step, self.n_jobs) for step in self._steps]
 
     def _get_default_estimators(self):
-        return list(map(set_params_to_first, self._get_estimators()))
+        return [
+            set_params_to_first(unwrap_first(estimator))
+            for estimator in self._get_estimators()
+        ]
 
     def _get_param_grid(self):
         grid = {
             name: estimator
             for (name, estimator) in zip(self._get_step_names(), self._get_estimators())
-            if _contains_choice(estimator)
+            if contains_choice(estimator)
         }
         return expand_grid(grid)
 
@@ -118,7 +132,7 @@ class Pipe:
         steps = list(zip(self._get_step_names(), self._get_default_estimators()))
         if not with_predictor and self._has_predictor():
             steps = steps[:-1]
-        return clone(Pipeline(steps))
+        return clone(NamedParamPipeline(steps))
 
     def _get_grid_search(self):
         grid = self._get_param_grid()
@@ -212,22 +226,32 @@ class Pipe:
     def get_pipeline_description(self):
         return _describe_pipeline(zip(self._get_step_names(), self._steps))
 
-    def get_best_params_description(self, fitted_grid_search):
-        return expanded_grid_item_description(
-            self._get_param_grid(), fitted_grid_search.best_index_
-        )
+    def get_params_description(self, params):
+        return params_description(params)
+
+    def get_cv_results_description(self, fitted_gs):
+        out = io.StringIO()
+        out.write("Best params:\n")
+        out.write(f"    Score: {fitted_gs.best_score_:.3g}\n")
+        for line in io.StringIO(self.get_params_description(fitted_gs.best_params_)):
+            out.write("    " + line)
+        out.write("All combinations:\n")
+        all_params = fitted_gs.cv_results_["params"]
+        scores = fitted_gs.cv_results_["mean_test_score"]
+        for score, params in zip(scores, all_params):
+            out.write(f"    - Score: {score:.3g}\n")
+            for line in io.StringIO(self.get_params_description(params)):
+                out.write("      " + line)
+        return out.getvalue()
 
     def __repr__(self):
         n_steps = len(self._steps)
         predictor_info = ""
+        step_names = self._get_step_names()
         if self._has_predictor():
             n_steps -= 1
-            predictor_info = (
-                f" + {first(self._steps[-1]).estimator_.__class__.__name__}"
-            )
-        step_descriptions = [
-            f"{i}: {name}" for i, name in enumerate(self._get_step_names())
-        ]
+            predictor_info = " + predictor"
+        step_descriptions = [f"{i}: {name}" for i, name in enumerate(step_names)]
         pipe_description = (
             f"<{self.__class__.__name__}: {n_steps} transformations{predictor_info}>"
             + (f"\nSteps:\n{', '.join(step_descriptions)}" if self._steps else "")
@@ -301,27 +325,24 @@ class StepCols:
         return f"<TODO columns: {self.cols_}>"
 
 
-def _describe_choice(name, choice, buf):
-    buf.write(f"{name}:\n")
+def _describe_choice(choice, buf):
     buf.write("    choose:\n")
     dash = "        - "
-    indent = "          "
     for opt in choice.options_:
-        buf.write(f"{dash}cols: {opt.cols_}\n")
-        buf.write(f"{indent}estimator: {opt.estimator_}\n")
-
-
-def _describe_step(name, step, buf):
-    buf.write(f"{name}:\n")
-    buf.write(f"    cols: {step.cols_}\n")
-    buf.write(f"    estimator: {step.estimator_}\n")
+        if opt.name_ is not None:
+            name = f"{opt.name_} = "
+        else:
+            name = ""
+        buf.write(f"{dash}{name}{opt.value_}\n")
 
 
 def _describe_pipeline(named_steps):
     buf = io.StringIO()
     for name, step in named_steps:
-        if isinstance(step, Choice):
-            _describe_choice(name, step, buf)
+        buf.write(f"{name}:\n")
+        buf.write(f"    cols: {step.cols_}\n")
+        if isinstance(step.estimator_, Choice):
+            _describe_choice(step.estimator_, buf)
         else:
-            _describe_step(name, step, buf)
+            buf.write(f"    estimator: {step.estimator_}\n")
     return buf.getvalue()

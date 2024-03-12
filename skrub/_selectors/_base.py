@@ -161,9 +161,11 @@ class PipeStep:
         self.rename_columns_ = new_rename_columns
         return self
 
-    def _make_transformer(self, n_jobs=1):
+    def _make_transformer(self, estimator=None, n_jobs=1):
+        if estimator is None:
+            estimator = self.estimator_
         return self.cols_.make_transformer(
-            self.estimator_,
+            estimator,
             keep_original=self.keep_original_,
             rename_columns=self.rename_columns_,
             n_jobs=n_jobs,

@@ -2,19 +2,51 @@ import io
 from collections.abc import Sequence
 
 from sklearn.base import clone
-from sklearn.model_selection import ParameterGrid
+
+
+class Option:
+    def __init__(self, value, name=None, in_choice=None):
+        self.value_ = value
+        self.name_ = name
+        self.in_choice_ = in_choice
+
+    def name(self, new_name):
+        self.name_ = new_name
+
+    def in_choice(self, new_in_choice):
+        self.in_choice_ = new_in_choice
+
+    def __str__(self):
+        if self.name_ is not None:
+            return repr(self.name_)
+        return repr(self.value_)
+
+    def __repr__(self):
+        parts = [f"{self.value_!r}"]
+        if self.name_ is not None:
+            parts.append(f"name={self.name_!r}")
+        if self.in_choice_ is not None:
+            parts.append(f"in_choice={self.in_choice_!r}")
+        args = ", ".join(parts)
+        return f"Option({args})"
 
 
 class Choice(Sequence):
-    def __init__(self, *options):
+    def __init__(self, options, name=None):
         if not options:
             raise TypeError("Choice should be given at least one option.")
         self.options_ = list(options)
-        self.name_ = None
+        self.name_ = name
+        self._update_option_names()
 
     def name(self, name):
         self.name_ = name
+        self._update_option_names()
         return self
+
+    def _update_option_names(self):
+        for opt in self.options_:
+            opt.in_choice_ = self.name_
 
     def __getitem__(self, item):
         return self.options_[item]
@@ -26,13 +58,23 @@ class Choice(Sequence):
         return iter(self.options_)
 
     def __repr__(self):
-        options_repr = ", ".join(map(repr, self.options_))
+        options_repr = ", ".join(
+            [repr(opt.value_) for opt in self.options_ if opt.name_ is None]
+            + [
+                f"{opt.name_}={opt.value_!r}"
+                for opt in self.options_
+                if opt.name_ is not None
+            ]
+        )
         name_repr = "" if self.name_ is None else f".name({self.name_!r})"
         return f"choose({options_repr}){name_repr}"
 
 
-def repeat_name(choice):
-    return choose(*(choice.name_ for opt in choice.options_))
+def choose(*options, **named_options):
+    prepared_options = [Option(opt) for opt in options] + [
+        Option(val, name) for name, val in named_options.items()
+    ]
+    return Choice(prepared_options)
 
 
 class Placeholder:
@@ -45,117 +87,106 @@ class Placeholder:
         return "..."
 
 
-def choose(*options):
-    return Choice(*options)
-
-
-def as_choice(obj):
+def unwrap_first(obj):
     if isinstance(obj, Choice):
-        return obj
-    return choose(obj)
-
-
-def first(obj):
-    if isinstance(obj, Choice):
-        return obj.options_[0]
+        return obj.options_[0].value_
+    if isinstance(obj, Option):
+        return obj.value_
     return obj
 
 
+def unwrap(obj):
+    if isinstance(obj, Choice):
+        return [opt.value_ for opt in obj.options_]
+    if isinstance(obj, Option):
+        return obj.value_
+    return obj
+
+
+def contains_choice(obj):
+    return isinstance(obj, Choice) or bool(_find_param_choices(obj))
+
+
 def set_params_to_first(estimator):
-    estimator = clone(first(estimator))
-    while (choice := find_param_choice(estimator)) is not None:
-        name, value = choice
-        value = first(value)
-        estimator.set_params(**{name: value})
+    estimator = clone(unwrap_first(estimator))
+    while param_choices := _find_param_choices(estimator):
+        params = {k: unwrap_first(v) for k, v in param_choices.items()}
+        estimator.set_params(**params)
     return estimator
 
 
-def options(obj):
-    if isinstance(obj, Choice):
-        return obj.options_
-    return [obj]
-
-
-def find_param_choice(obj):
+def _find_param_choices(obj):
     if not hasattr(obj, "get_params"):
-        return None
+        return []
     params = obj.get_params(deep=True)
-    for param_name, param_value in params.items():
-        if isinstance(param_value, Choice):
-            return param_name, param_value
-    return None
+    return {k: v for k, v in params.items() if isinstance(v, Choice)}
 
 
-def insert_in_dict(d, key, value, idx):
-    kv = list(d.items())
-    kv.insert(idx, (key, value))
-    return dict(kv)
-
-
-def expand_grid(grid):
-    for param_name, param_value in grid.items():
-        param_choice = as_choice(param_value)
-        param_options = options(param_choice)
-        for pos, value in enumerate(param_options):
-            if (choice := find_param_choice(value)) is None:
-                continue
-            subparam_name, subparam_choice = choice
-            value = clone(value)
+def _extract_choices(grid):
+    new_grid = {}
+    for param_name, param in grid.items():
+        if isinstance(param, Choice) and len(param.options_) == 1:
+            param = param.options_[0]
+        if isinstance(param, (Option, Choice)):
+            new_grid[param_name] = param
+        else:
+            # In this case we have a 'raw' estimator that has not been wrapped
+            # in an Option. Therefore it is not part of a choice itself, but it
+            # contains a choice. We pull out the choices to include them in the
+            # grid, but the param itself does not need to be in the grid so we
+            # don't include it to keep the grid more compact.
+            param = Option(param)
+        if isinstance(param, Choice):
+            continue
+        all_subparam_choices = _find_param_choices(param.value_)
+        if not all_subparam_choices:
+            continue
+        placeholders = {}
+        for subparam_name, subparam_choice in all_subparam_choices.items():
             subparam_id = f"{param_name}__{subparam_name}"
             placeholder_name = (
                 subparam_id if (n := subparam_choice.name_) is None else n
             )
-            value.set_params(**{subparam_name: Placeholder(placeholder_name)})
-            grid_1 = grid.copy()
-            grid_1[param_name] = as_choice(value).name(param_choice.name_)
-            # insert next to parent choice rather than at the end
-            idx = list(grid_1.keys()).index(param_name) + 1
-            grid_1 = insert_in_dict(grid_1, subparam_id, subparam_choice, idx)
-            rest = param_options[:pos] + param_options[pos + 1 :]
-            if not rest:
-                return expand_grid(grid_1)
-            grid_2 = grid.copy()
-            grid_2[param_name] = choose(*rest).name(param_choice.name_)
-            return [*expand_grid(grid_1), *expand_grid(grid_2)]
-    return [{k: as_choice(v) for k, v in grid.items()}]
+            placeholders[subparam_name] = Placeholder(placeholder_name)
+            new_grid[subparam_id] = subparam_choice
+        if param_name in new_grid:
+            estimator = clone(param.value_)
+            estimator.set_params(**placeholders)
+            new_grid[param_name] = Option(estimator, param.name_, param.in_choice_)
+    return new_grid
 
 
-def unwrap_choices(grids):
-    return [{k: options(v) for k, v in subg.items()} for subg in grids]
+def _split_grid(grid):
+    grid = _extract_choices(grid)
+    for param_name, param in grid.items():
+        if not isinstance(param, Choice):
+            continue
+        for idx, option in enumerate(param.options_):
+            if _find_param_choices(option.value_):
+                grid_1 = grid.copy()
+                grid_1[param_name] = option
+                rest = param.options_[:idx] + param.options_[idx + 1 :]
+                if not rest:
+                    return _split_grid(grid_1)
+                grid_2 = grid.copy()
+                grid_2[param_name] = Choice(rest, name=param.name_)
+                return [*_split_grid(grid_1), *_split_grid(grid_2)]
+    return [grid]
 
 
-def choice_names_for_expanded_grid(grid):
-    grid = [{k: repeat_name(v) for k, v in subg.items()} for subg in grid]
-    return list(ParameterGrid(grid))
-
-
-def show_expanded_grid(grid):
-    names = choice_names_for_expanded_grid(grid)
-    values = list(ParameterGrid(grid))
-    return [
-        [
-            (default if given is None else given, val)
-            for (default, given), val in zip(
-                subgrid_names.items(), subgrid_values.values()
-            )
-        ]
-        for subgrid_names, subgrid_values in zip(names, values)
-    ]
-
-
-def expanded_grid_item_description(grid, idx):
-    subgrid = show_expanded_grid(grid)[idx]
-    return "".join(f"{k!r}: {v!r}\n" for k, v in subgrid)
-
-
-def expanded_grid_description(grid):
-    buf = io.StringIO()
-    for subgrid in show_expanded_grid(grid):
-        prefix = "- "
-        for k, v in subgrid:
-            buf.write(f"{prefix}{k!r}: {v!r}\n")
-            prefix = "  "
-    return buf.getvalue()
+def expand_grid(grid):
+    grid = _split_grid(grid)
+    # wrap all values in a Choice because ParamGrid wants all values to be
+    # iterables.
+    new_grid = []
+    for subgrid in grid:
+        new_subgrid = {}
+        for k, v in subgrid.items():
+            if isinstance(v, Option):
+                v = Choice([v], name=v.in_choice_)
+            new_subgrid[k] = v
+        new_grid.append(new_subgrid)
+    return new_grid
 
 
 def grid_description(grid):
@@ -166,10 +197,19 @@ def grid_description(grid):
             if v.name_ is not None:
                 k = v.name_
             if len(v.options_) == 1:
-                buf.write(f"{prefix}{k!r}: {v.options_[0]!r}\n")
+                buf.write(f"{prefix}{k!r}: {v.options_[0]}\n")
             else:
                 buf.write(f"{prefix}{k!r}:\n")
                 for opt in v.options_:
-                    buf.write(f"      - {opt!r}\n")
+                    buf.write(f"      - {opt}\n")
             prefix = "  "
+    return buf.getvalue()
+
+
+def params_description(grid_entry):
+    buf = io.StringIO()
+    for param_id, param in grid_entry.items():
+        choice_name = param.in_choice_ or param_id
+        value = param.name_ or param.value_
+        buf.write(f"{choice_name!r}: {value!r}\n")
     return buf.getvalue()
