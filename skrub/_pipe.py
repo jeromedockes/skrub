@@ -8,7 +8,7 @@ from sklearn.pipeline import Pipeline
 
 from . import _dataframe as sbd
 from . import selectors as s
-from ._add_estimator_methods import add_estimator_methods, camel_to_snake
+from ._add_estimator_methods import camel_to_snake
 from ._choice import (
     Choice,
     Option,
@@ -21,6 +21,8 @@ from ._choice import (
     unwrap,
     unwrap_first,
 )
+
+__all__ = ["Pipe", "choose"]
 
 
 class NamedParamPipeline(Pipeline):
@@ -232,14 +234,14 @@ class Pipe:
     def get_cv_results_description(self, fitted_gs):
         out = io.StringIO()
         out.write("Best params:\n")
-        out.write(f"    Score: {fitted_gs.best_score_:.3g}\n")
+        out.write(f"    score: {fitted_gs.best_score_:.3g}\n")
         for line in io.StringIO(self.get_params_description(fitted_gs.best_params_)):
             out.write("    " + line)
         out.write("All combinations:\n")
         all_params = fitted_gs.cv_results_["params"]
         scores = fitted_gs.cv_results_["mean_test_score"]
         for score, params in zip(scores, all_params):
-            out.write(f"    - Score: {score:.3g}\n")
+            out.write(f"    - score: {score:.3g}\n")
             for line in io.StringIO(self.get_params_description(params)):
                 out.write("      " + line)
         return out.getvalue()
@@ -286,43 +288,6 @@ class Pipe:
             .keep_original(keep_original)
             .rename_columns(rename_columns)
         )
-
-    # Alternative API 1
-    def choose(
-        self,
-        *options,
-        cols=s.all(),
-        name=None,
-        keep_original=False,
-        rename_columns="{}",
-    ):
-        return self.chain(
-            s.make_selector(cols)
-            .use(choose(*options).name(name))
-            .keep_original(keep_original)
-            .rename_columns(rename_columns)
-        )
-
-    # Alternative API 2
-    def cols(self, selector=s.all()):
-        return StepCols(self, selector)
-
-
-# Alternative API 2
-@add_estimator_methods
-class StepCols:
-    def __init__(self, pipe, cols):
-        self.pipe_ = pipe
-        self.cols_ = s.make_selector(cols)
-
-    def use(self, estimator):
-        return self.pipe_.chain(self.cols_.use(estimator))
-
-    def choose(self, *options):
-        return self.pipe_.chain(self.cols_.use(choose(*options)))
-
-    def __repr__(self):
-        return f"<TODO columns: {self.cols_}>"
 
 
 def _describe_choice(choice, buf):

@@ -1,6 +1,5 @@
 from .. import _dataframe as sbd
 from .._add_estimator_methods import add_estimator_methods
-from .._choice import choose
 from .._dispatch import dispatch
 from ._utils import list_difference, list_intersect
 
@@ -136,9 +135,6 @@ class Selector:
 
     def use(self, estimator):
         return PipeStep(cols=self, estimator=estimator)
-
-    def choose(self, *options):
-        return self.use(choose(*options))
 
 
 class PipeStep:
