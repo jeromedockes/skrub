@@ -242,7 +242,7 @@ class Pipe:
     def get_params_description(self, params):
         return params_description(params)
 
-    def get_cv_results_description(self, fitted_gs):
+    def get_cv_results_description(self, fitted_gs, max_entries=5):
         out = io.StringIO()
         out.write("Best params:\n")
         out.write(f"    score: {fitted_gs.best_score_:.3g}\n")
@@ -251,7 +251,11 @@ class Pipe:
         out.write("All combinations:\n")
         all_params = fitted_gs.cv_results_["params"]
         scores = fitted_gs.cv_results_["mean_test_score"]
-        for score, params in zip(scores, all_params):
+        for entry_idx, (score, params) in enumerate(zip(scores, all_params)):
+            if entry_idx == max_entries:
+                remaining = len(scores) - max_entries
+                out.write(f"[... {remaining} more entries]")
+                break
             out.write(f"    - score: {score:.3g}\n")
             for line in io.StringIO(self.get_params_description(params)):
                 out.write("      " + line)
