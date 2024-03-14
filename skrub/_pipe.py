@@ -15,6 +15,7 @@ from ._choice import (
     RandomChoice,
     choose,
     choose_float,
+    choose_int,
     contains_choice,
     expand_grid,
     grid_description,
@@ -24,7 +25,7 @@ from ._choice import (
     unwrap_first,
 )
 
-__all__ = ["Pipe", "choose", "choose_float"]
+__all__ = ["Pipe", "choose", "choose_float", "choose_int"]
 
 
 class NamedParamPipeline(Pipeline):

@@ -1,6 +1,7 @@
 import io
 from collections.abc import Sequence
 
+import numpy as np
 from scipy import stats
 from sklearn.base import clone
 
@@ -87,10 +88,11 @@ def _distrib_repr(distrib):
 
 
 class RandomChoice(BaseChoice):
-    def __init__(self, distrib, name=None, description=None):
+    def __init__(self, distrib, name=None, description=None, to_int=False):
         self.distrib_ = distrib
         self.name_ = name
         self._description = description
+        self._to_int = to_int
 
     def name(self, name):
         self.name_ = name
@@ -98,6 +100,8 @@ class RandomChoice(BaseChoice):
 
     def rvs(self, size=None, random_state=None):
         value = self.distrib_.rvs(size=size, random_state=random_state)
+        if self._to_int:
+            value = np.round(value).astype(int)
         return Option(value, in_choice=self.name_)
 
     def _repr_no_name(self):
@@ -125,6 +129,20 @@ def choose_float(low, high, log=False):
         )
     return RandomChoice(
         stats.uniform(low, high), description=f"choose_float({low}, {high}, log=True)"
+    )
+
+
+def choose_int(low, high, log=False):
+    if log:
+        return RandomChoice(
+            stats.loguniform(low, high),
+            description=f"choose_int({low}, {high})",
+            to_int=True,
+        )
+    return RandomChoice(
+        stats.uniform(low, high),
+        description=f"choose_int({low}, {high}, log=True)",
+        to_int=True,
     )
 
 
