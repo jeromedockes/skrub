@@ -12,6 +12,7 @@ from ._add_estimator_methods import camel_to_snake
 from ._choice import (
     Choice,
     Option,
+    Optional,
     RandomChoice,
     choose,
     choose_float,
@@ -24,6 +25,7 @@ from ._choice import (
     set_params_to_first,
     unwrap,
     unwrap_first,
+    write_indented,
 )
 
 __all__ = ["Pipe", "choose", "optional", "choose_float", "choose_int"]
@@ -256,7 +258,7 @@ class Pipe:
     def get_params_description(self, params):
         return params_description(params)
 
-    def get_cv_results_description(self, fitted_gs, max_entries=5):
+    def get_cv_results_description(self, fitted_gs, max_entries=8):
         out = io.StringIO()
         out.write("Best params:\n")
         out.write(f"    score: {fitted_gs.best_score_:.3g}\n")
@@ -268,7 +270,9 @@ class Pipe:
         for entry_idx, (score, params) in enumerate(zip(scores, all_params)):
             if entry_idx == max_entries:
                 remaining = len(scores) - max_entries
-                out.write(f"[... {remaining} more entries]")
+                out.write(
+                    f"[ ... {remaining} more entries, set 'max_entries' to see more]"
+                )
                 break
             out.write(f"    - score: {score:.3g}\n")
             for line in io.StringIO(self.get_params_description(params)):
@@ -319,30 +323,38 @@ class Pipe:
         )
 
 
-def _describe_estimator(estimator):
+def _estimator_repr(estimator):
     if _is_passthrough(estimator):
         return "passthrough"
-    return estimator
+    return repr(estimator)
 
 
 def _describe_choice(choice, buf):
-    buf.write("    choose:\n")
+    buf.write("    choose estimator from:\n")
     dash = "        - "
     for opt in choice.options_:
         if opt.name_ is not None:
             name = f"{opt.name_} = "
         else:
             name = ""
-        buf.write(f"{dash}{name}{_describe_estimator(opt.value_)}\n")
+        write_indented(f"{dash}{name}", f"{_estimator_repr(opt.value_)}\n", buf)
 
 
 def _describe_pipeline(named_steps):
     buf = io.StringIO()
     for name, step in named_steps:
         buf.write(f"{name}:\n")
+        if isinstance(step.estimator_, Optional):
+            buf.write("    OPTIONAL STEP\n")
         buf.write(f"    cols: {step.cols_}\n")
-        if isinstance(step.estimator_, Choice):
+        if isinstance(step.estimator_, Choice) and not isinstance(
+            step.estimator_, Optional
+        ):
             _describe_choice(step.estimator_, buf)
         else:
-            buf.write(f"    estimator: {_describe_estimator(step.estimator_)}\n")
+            write_indented(
+                "    estimator: ",
+                f"{_estimator_repr(unwrap_first(step.estimator_))}\n",
+                buf,
+            )
     return buf.getvalue()

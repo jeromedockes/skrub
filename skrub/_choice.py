@@ -115,6 +115,12 @@ class RandomChoice(BaseChoice):
         return f"{self._repr_no_name()}{name_repr}"
 
 
+class Optional(Choice):
+    def __repr__(self):
+        name_repr = "" if self.name_ is None else f".name({self.name_!r})"
+        return f"optional({self.options_[0].value_!r}){name_repr}"
+
+
 def choose(*options, **named_options):
     prepared_options = [Option(opt) for opt in options] + [
         Option(val, name) for name, val in named_options.items()
@@ -123,16 +129,17 @@ def choose(*options, **named_options):
 
 
 def optional(option):
-    return choose(true=option, false=None)
+    return Optional([Option(option, "true"), Option(None, "false")])
 
 
 def choose_float(low, high, log=False):
     if log:
         return RandomChoice(
-            stats.loguniform(low, high), description=f"choose_float({low}, {high})"
+            stats.loguniform(low, high),
+            description=f"choose_float({low}, {high}, log=True)",
         )
     return RandomChoice(
-        stats.uniform(low, high), description=f"choose_float({low}, {high}, log=True)"
+        stats.uniform(low, high), description=f"choose_float({low}, {high})"
     )
 
 
@@ -140,12 +147,12 @@ def choose_int(low, high, log=False):
     if log:
         return RandomChoice(
             stats.loguniform(low, high),
-            description=f"choose_int({low}, {high})",
+            description=f"choose_int({low}, {high}, log=True)",
             to_int=True,
         )
     return RandomChoice(
         stats.uniform(low, high),
-        description=f"choose_int({low}, {high}, log=True)",
+        description=f"choose_int({low}, {high})",
         to_int=True,
     )
 
@@ -267,6 +274,16 @@ def expand_grid(grid):
     return new_grid
 
 
+def write_indented(prefix, text, ostream):
+    istream = io.StringIO(text)
+    ostream.write(prefix)
+    ostream.write(next(istream))
+    for line in istream:
+        ostream.write(" " * len(prefix))
+        ostream.write(line)
+    return ostream.getvalue()
+
+
 def grid_description(grid):
     buf = io.StringIO()
     for subgrid in grid:
@@ -275,13 +292,13 @@ def grid_description(grid):
             if v.name_ is not None:
                 k = v.name_
             if isinstance(v, RandomChoice):
-                buf.write(f"{prefix}{k!r}: {v._repr_no_name()}\n")
+                write_indented(f"{prefix}{k!r}: ", f"{v._repr_no_name()}\n", buf)
             elif len(v.options_) == 1:
-                buf.write(f"{prefix}{k!r}: {v.options_[0]}\n")
+                write_indented(f"{prefix}{k!r}: ", f"{v.options_[0]}\n", buf)
             else:
                 buf.write(f"{prefix}{k!r}:\n")
                 for opt in v.options_:
-                    buf.write(f"      - {opt}\n")
+                    write_indented("      - ", f"{opt}\n", buf)
             prefix = "  "
     return buf.getvalue()
 
@@ -291,5 +308,5 @@ def params_description(grid_entry):
     for param_id, param in grid_entry.items():
         choice_name = param.in_choice_ or param_id
         value = param.name_ or param.value_
-        buf.write(f"{choice_name!r}: {value!r}\n")
+        write_indented(f"{choice_name!r}: ", f"{value!r}\n", buf)
     return buf.getvalue()
