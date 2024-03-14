@@ -3,7 +3,7 @@ import itertools
 import traceback
 
 from sklearn.base import clone
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 
 from . import _dataframe as sbd
@@ -12,7 +12,9 @@ from ._add_estimator_methods import camel_to_snake
 from ._choice import (
     Choice,
     Option,
+    RandomChoice,
     choose,
+    choose_float,
     contains_choice,
     expand_grid,
     grid_description,
@@ -22,7 +24,7 @@ from ._choice import (
     unwrap_first,
 )
 
-__all__ = ["Pipe", "choose"]
+__all__ = ["Pipe", "choose", "choose_float"]
 
 
 class NamedParamPipeline(Pipeline):
@@ -130,15 +132,30 @@ class Pipe:
         }
         return expand_grid(grid)
 
-    def _get_pipeline(self, with_predictor=True):
+    def get_pipeline(self, with_predictor=True):
         steps = list(zip(self._get_step_names(), self._get_default_estimators()))
         if not with_predictor and self._has_predictor():
             steps = steps[:-1]
         return clone(NamedParamPipeline(steps))
 
-    def _get_grid_search(self):
+    def get_grid_search(self):
         grid = self._get_param_grid()
-        return GridSearchCV(self._get_pipeline(), grid)
+        if any(
+            isinstance(param, RandomChoice)
+            for subgrid in grid
+            for param in subgrid.values()
+        ):
+            raise ValueError(
+                "Cannot get grid search if some of the choices are random. "
+                "Use get_randomized_search() instead."
+            )
+        return GridSearchCV(self.get_pipeline(), grid)
+
+    def get_randomized_search(self, n_iter=10, random_state=None):
+        grid = self._get_param_grid()
+        return RandomizedSearchCV(
+            self.get_pipeline(), grid, n_iter=n_iter, random_state=random_state
+        )
 
     def chain(self, *steps):
         if self._has_predictor():
@@ -157,18 +174,12 @@ class Pipe:
         self._steps = self._steps[:-1]
         return estimator
 
-    def get_grid_search(self):
-        return self._get_grid_search()
-
-    def get_pipeline(self):
-        return self._get_pipeline()
-
     def _transform_preview(self, sampling_method, n=None):
         if self.input_data is None:
             return None
         n = self.preview_sample_size if n is None else n
         df = self._get_sampler(sampling_method)(n)
-        pipeline = self._get_pipeline(False)
+        pipeline = self.get_pipeline(False)
         if not pipeline.steps:
             return df, []
         for step_name, transformer in pipeline.steps:

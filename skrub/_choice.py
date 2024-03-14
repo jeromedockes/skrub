@@ -1,6 +1,7 @@
 import io
 from collections.abc import Sequence
 
+from scipy import stats
 from sklearn.base import clone
 
 
@@ -31,7 +32,11 @@ class Option:
         return f"Option({args})"
 
 
-class Choice(Sequence):
+class BaseChoice:
+    pass
+
+
+class Choice(Sequence, BaseChoice):
     def __init__(self, options, name=None):
         if not options:
             raise TypeError("Choice should be given at least one option.")
@@ -70,11 +75,57 @@ class Choice(Sequence):
         return f"choose({options_repr}){name_repr}"
 
 
+def _distrib_repr(distrib):
+    try:
+        parent = distrib.dist
+        posargs = map(str, distrib.args)
+        kwargs = (f"{k}={v}" for k, v in distrib.kwds)
+        args = ", ".join([*posargs, *kwargs])
+        return f"{parent.name}({args})"
+    except Exception:
+        return repr(distrib)
+
+
+class RandomChoice(BaseChoice):
+    def __init__(self, distrib, name=None, description=None):
+        self.distrib_ = distrib
+        self.name_ = name
+        self._description = description
+
+    def name(self, name):
+        self.name_ = name
+        return self
+
+    def rvs(self, size=None, random_state=None):
+        value = self.distrib_.rvs(size=size, random_state=random_state)
+        return Option(value, in_choice=self.name_)
+
+    def _repr_no_name(self):
+        if self._description is not None:
+            return self._description
+        distrib_repr = _distrib_repr(self.distrib_)
+        return f"{self.__class__.__name__}({distrib_repr})"
+
+    def __repr__(self):
+        name_repr = "" if self.name_ is None else f".name({self.name_!r})"
+        return f"{self._repr_no_name()}{name_repr}"
+
+
 def choose(*options, **named_options):
     prepared_options = [Option(opt) for opt in options] + [
         Option(val, name) for name, val in named_options.items()
     ]
     return Choice(prepared_options)
+
+
+def choose_float(low, high, log=False):
+    if log:
+        return RandomChoice(
+            stats.loguniform(low, high), description=f"choose_float({low}, {high})"
+        )
+    return RandomChoice(
+        stats.uniform(low, high), description=f"choose_float({low}, {high}, log=True)"
+    )
 
 
 class Placeholder:
@@ -90,6 +141,8 @@ class Placeholder:
 def unwrap_first(obj):
     if isinstance(obj, Choice):
         return obj.options_[0].value_
+    if isinstance(obj, RandomChoice):
+        return obj.rvs(random_state=0)
     if isinstance(obj, Option):
         return obj.value_
     return obj
@@ -103,8 +156,8 @@ def unwrap(obj):
     return obj
 
 
-def contains_choice(obj):
-    return isinstance(obj, Choice) or bool(_find_param_choices(obj))
+def contains_choice(estimator):
+    return isinstance(estimator, Choice) or bool(_find_param_choices(estimator))
 
 
 def set_params_to_first(estimator):
@@ -119,7 +172,7 @@ def _find_param_choices(obj):
     if not hasattr(obj, "get_params"):
         return []
     params = obj.get_params(deep=True)
-    return {k: v for k, v in params.items() if isinstance(v, Choice)}
+    return {k: v for k, v in params.items() if isinstance(v, BaseChoice)}
 
 
 def _extract_choices(grid):
@@ -127,7 +180,7 @@ def _extract_choices(grid):
     for param_name, param in grid.items():
         if isinstance(param, Choice) and len(param.options_) == 1:
             param = param.options_[0]
-        if isinstance(param, (Option, Choice)):
+        if isinstance(param, (Option, BaseChoice)):
             new_grid[param_name] = param
         else:
             # In this case we have a 'raw' estimator that has not been wrapped
@@ -136,7 +189,7 @@ def _extract_choices(grid):
             # grid, but the param itself does not need to be in the grid so we
             # don't include it to keep the grid more compact.
             param = Option(param)
-        if isinstance(param, Choice):
+        if isinstance(param, BaseChoice):
             continue
         all_subparam_choices = _find_param_choices(param.value_)
         if not all_subparam_choices:
@@ -176,7 +229,7 @@ def _split_grid(grid):
 
 def expand_grid(grid):
     grid = _split_grid(grid)
-    # wrap all values in a Choice because ParamGrid wants all values to be
+    # wrap all Options in a Choice because ParamGrid wants all values to be
     # iterables.
     new_grid = []
     for subgrid in grid:
@@ -196,7 +249,9 @@ def grid_description(grid):
         for k, v in subgrid.items():
             if v.name_ is not None:
                 k = v.name_
-            if len(v.options_) == 1:
+            if isinstance(v, RandomChoice):
+                buf.write(f"{prefix}{k!r}: {v._repr_no_name()}\n")
+            elif len(v.options_) == 1:
                 buf.write(f"{prefix}{k!r}: {v.options_[0]}\n")
             else:
                 buf.write(f"{prefix}{k!r}:\n")
