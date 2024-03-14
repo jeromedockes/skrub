@@ -160,7 +160,7 @@ def unwrap_first(obj):
     if isinstance(obj, Choice):
         return obj.options_[0].value_
     if isinstance(obj, RandomChoice):
-        return obj.rvs(random_state=0)
+        return obj.rvs(random_state=0).value_
     if isinstance(obj, Option):
         return obj.value_
     return obj
@@ -179,7 +179,10 @@ def contains_choice(estimator):
 
 
 def set_params_to_first(estimator):
-    estimator = clone(unwrap_first(estimator))
+    estimator = unwrap_first(estimator)
+    if not hasattr(estimator, "set_params"):
+        return estimator
+    estimator = clone(estimator)
     while param_choices := _find_param_choices(estimator):
         params = {k: unwrap_first(v) for k, v in param_choices.items()}
         estimator.set_params(**params)

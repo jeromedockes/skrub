@@ -62,6 +62,12 @@ def _to_step(obj):
     return s.all().use(obj)
 
 
+def _is_passthrough(estimator):
+    return (
+        estimator is None or isinstance(estimator, str) and estimator == "passthrough"
+    )
+
+
 def _to_estimator(step, n_jobs):
     estimator = step.estimator_
     if isinstance(estimator, Choice):
@@ -69,6 +75,10 @@ def _to_estimator(step, n_jobs):
         for opt in estimator.options_:
             if hasattr(opt.value_, "predict"):
                 estimator_choices.append(Option(opt.value_, opt.name_, opt.in_choice_))
+            elif _is_passthrough(opt.value_):
+                estimator_choices.append(
+                    Option("passthrough", opt.name_, opt.in_choice_)
+                )
             else:
                 estimator_choices.append(
                     Option(
@@ -80,7 +90,9 @@ def _to_estimator(step, n_jobs):
         return Choice(estimator_choices, name=estimator.name_)
     if hasattr(estimator, "predict"):
         return estimator
-    return step._make_transformer(n_jobs=n_jobs)
+    elif _is_passthrough(estimator):
+        return "passthrough"
+    return step._make_transformer(estimator, n_jobs=n_jobs)
 
 
 class Pipe:
@@ -306,6 +318,12 @@ class Pipe:
         )
 
 
+def _describe_estimator(estimator):
+    if _is_passthrough(estimator):
+        return "passthrough"
+    return estimator
+
+
 def _describe_choice(choice, buf):
     buf.write("    choose:\n")
     dash = "        - "
@@ -314,7 +332,7 @@ def _describe_choice(choice, buf):
             name = f"{opt.name_} = "
         else:
             name = ""
-        buf.write(f"{dash}{name}{opt.value_}\n")
+        buf.write(f"{dash}{name}{_describe_estimator(opt.value_)}\n")
 
 
 def _describe_pipeline(named_steps):
@@ -325,5 +343,5 @@ def _describe_pipeline(named_steps):
         if isinstance(step.estimator_, Choice):
             _describe_choice(step.estimator_, buf)
         else:
-            buf.write(f"    estimator: {step.estimator_}\n")
+            buf.write(f"    estimator: {_describe_estimator(step.estimator_)}\n")
     return buf.getvalue()
