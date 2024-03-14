@@ -19,13 +19,14 @@ from ._choice import (
     contains_choice,
     expand_grid,
     grid_description,
+    optional,
     params_description,
     set_params_to_first,
     unwrap,
     unwrap_first,
 )
 
-__all__ = ["Pipe", "choose", "choose_float", "choose_int"]
+__all__ = ["Pipe", "choose", "optional", "choose_float", "choose_int"]
 
 
 class NamedParamPipeline(Pipeline):

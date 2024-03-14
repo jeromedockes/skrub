@@ -122,6 +122,10 @@ def choose(*options, **named_options):
     return Choice(prepared_options)
 
 
+def optional(option):
+    return choose(true=option, false=None)
+
+
 def choose_float(low, high, log=False):
     if log:
         return RandomChoice(
