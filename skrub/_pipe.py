@@ -13,7 +13,7 @@ from ._choice import (
     Choice,
     Option,
     Optional,
-    RandomChoice,
+    RandomNumber,
     choose,
     choose_float,
     choose_int,
@@ -157,7 +157,7 @@ class Pipe:
     def get_grid_search(self):
         grid = self._get_param_grid()
         if any(
-            isinstance(param, RandomChoice)
+            isinstance(param, RandomNumber)
             for subgrid in grid
             for param in subgrid.values()
         ):

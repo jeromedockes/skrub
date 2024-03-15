@@ -60,35 +60,34 @@ class Choice(Sequence, BaseChoice):
         return f"choose({options_repr})"
 
 
-def _distrib_repr(distrib):
-    try:
-        parent = distrib.dist
-        posargs = map(str, distrib.args)
-        kwargs = (f"{k}={v}" for k, v in distrib.kwds)
-        args = ", ".join([*posargs, *kwargs])
-        return f"{parent.name}({args})"
-    except Exception:
-        return repr(distrib)
-
-
 @fluent_class
-class RandomChoice(BaseChoice):
-    distrib_: Any
-    name_: str | None = None
-    description_: str | None = None
-    to_int_: bool = False
+class RandomNumber(BaseChoice):
+    low_: float
+    high_: float
+    log_: bool
+    to_int_: bool
+    name_: str = None
+
+    def __post_init__(self):
+        if self.log_:
+            self._distrib = stats.loguniform(self.low_, self.high_)
+        else:
+            self._distrib = stats.uniform(self.low_, self.high_)
 
     def rvs(self, size=None, random_state=None):
-        value = self.distrib_.rvs(size=size, random_state=random_state)
+        value = self._distrib.rvs(size=size, random_state=random_state)
         if self.to_int_:
             value = value.astype(int)
         return Option(value, in_choice=self.name_)
 
     def _get_factory_repr(self):
-        if self.description_ is not None:
-            return self.description_
-        distrib_repr = _distrib_repr(self.distrib_)
-        return f"{self.__class__.__name__}({distrib_repr})"
+        parts = [repr(self.low_), repr(self.high_)]
+        if self.log_:
+            parts.append("log=True")
+        args = ", ".join(parts)
+        if self.to_int_:
+            return f"choose_int({args})"
+        return f"choose_float({args})"
 
 
 class Optional(Choice):
@@ -108,28 +107,11 @@ def optional(option):
 
 
 def choose_float(low, high, log=False):
-    if log:
-        return RandomChoice(
-            stats.loguniform(low, high),
-            description=f"choose_float({low}, {high}, log=True)",
-        )
-    return RandomChoice(
-        stats.uniform(low, high), description=f"choose_float({low}, {high})"
-    )
+    return RandomNumber(low, high, log=log, to_int=False)
 
 
 def choose_int(low, high, log=False):
-    if log:
-        return RandomChoice(
-            stats.loguniform(low, high),
-            description=f"choose_int({low}, {high}, log=True)",
-            to_int=True,
-        )
-    return RandomChoice(
-        stats.uniform(low, high),
-        description=f"choose_int({low}, {high})",
-        to_int=True,
-    )
+    return RandomNumber(low, high, log=log, to_int=True)
 
 
 class Placeholder:
@@ -145,7 +127,7 @@ class Placeholder:
 def unwrap_first(obj):
     if isinstance(obj, Choice):
         return obj.options_[0].value_
-    if isinstance(obj, RandomChoice):
+    if isinstance(obj, RandomNumber):
         return obj.rvs(random_state=0).value_
     if isinstance(obj, Option):
         return obj.value_
@@ -266,7 +248,7 @@ def grid_description(grid):
         for k, v in subgrid.items():
             if v.name_ is not None:
                 k = v.name_
-            if isinstance(v, RandomChoice):
+            if isinstance(v, RandomNumber):
                 write_indented(f"{prefix}{k!r}: ", f"{v._get_factory_repr()}\n", buf)
             elif len(v.options_) == 1:
                 write_indented(f"{prefix}{k!r}: ", f"{v.options_[0]}\n", buf)
