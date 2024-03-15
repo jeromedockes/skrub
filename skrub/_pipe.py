@@ -281,6 +281,30 @@ class Pipe:
                 out.write("      " + line)
         return out.getvalue()
 
+    def get_cv_results_table(self, fitted_gs):
+        import pandas as pd
+
+        all_params = fitted_gs.cv_results_["params"]
+        mean_test_scores = fitted_gs.cv_results_["mean_test_score"]
+        std_test_scores = fitted_gs.cv_results_["std_test_score"]
+        mean_fit_time = fitted_gs.cv_results_["mean_fit_time"]
+        all_rows = []
+        param_names = set()
+        for score, std, time, params in zip(
+            mean_test_scores, std_test_scores, mean_fit_time, all_params
+        ):
+            row = {"mean_score": score, "fit_time": time, "std_score": std}
+            for param_id, param in params.items():
+                choice_name = param.in_choice_ or param_id
+                value = param.name_ or param.value_
+                row[choice_name] = value
+                param_names.add(choice_name)
+            all_rows.append(row)
+            cols = ["mean_score"] + list(param_names) + ["fit_time", "std_score"]
+        return pd.DataFrame(all_rows, columns=cols).sort_values(
+            "mean_score", ascending=False
+        )
+
     def __repr__(self):
         n_steps = len(self._steps)
         predictor_info = ""
