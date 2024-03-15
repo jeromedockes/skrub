@@ -304,7 +304,7 @@ class Pipe:
         ordered_param_names = [n for n in all_ordered_param_names if n in param_names]
         cols = ["mean_score"] + ordered_param_names + ["fit_time", "std_score"]
         return pd.DataFrame(all_rows, columns=cols).sort_values(
-            "mean_score", ascending=False
+            "mean_score", ascending=False, ignore_index=True
         )
 
     def __repr__(self):
