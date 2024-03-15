@@ -9,7 +9,7 @@ from ._fluent_classes import fluent_class
 
 
 @fluent_class
-class Option:
+class Outcome:
     value_: Any
     name_: str | None = None
     in_choice_: str | None = None
@@ -78,7 +78,7 @@ class RandomNumber(BaseChoice):
         value = self._distrib.rvs(size=size, random_state=random_state)
         if self.to_int_:
             value = value.astype(int)
-        return Option(value, in_choice=self.name_)
+        return Outcome(value, in_choice=self.name_)
 
     def _get_factory_repr(self):
         parts = [repr(self.low_), repr(self.high_)]
@@ -96,14 +96,14 @@ class Optional(Choice):
 
 
 def choose(*options, **named_options):
-    prepared_options = [Option(opt) for opt in options] + [
-        Option(val, name) for name, val in named_options.items()
+    prepared_options = [Outcome(opt) for opt in options] + [
+        Outcome(val, name) for name, val in named_options.items()
     ]
     return Choice(prepared_options)
 
 
 def optional(option):
-    return Optional([Option(option, "true"), Option(None, "false")])
+    return Optional([Outcome(option, "true"), Outcome(None, "false")])
 
 
 def choose_float(low, high, log=False):
@@ -129,7 +129,7 @@ def unwrap_first(obj):
         return obj.options_[0].value_
     if isinstance(obj, RandomNumber):
         return obj.rvs(random_state=0).value_
-    if isinstance(obj, Option):
+    if isinstance(obj, Outcome):
         return obj.value_
     return obj
 
@@ -137,7 +137,7 @@ def unwrap_first(obj):
 def unwrap(obj):
     if isinstance(obj, Choice):
         return [opt.value_ for opt in obj.options_]
-    if isinstance(obj, Option):
+    if isinstance(obj, Outcome):
         return obj.value_
     return obj
 
@@ -169,7 +169,7 @@ def _extract_choices(grid):
     for param_name, param in grid.items():
         if isinstance(param, Choice) and len(param.options_) == 1:
             param = param.options_[0]
-        if isinstance(param, (Option, BaseChoice)):
+        if isinstance(param, (Outcome, BaseChoice)):
             new_grid[param_name] = param
         else:
             # In this case we have a 'raw' estimator that has not been wrapped
@@ -177,7 +177,7 @@ def _extract_choices(grid):
             # contains a choice. We pull out the choices to include them in the
             # grid, but the param itself does not need to be in the grid so we
             # don't include it to keep the grid more compact.
-            param = Option(param)
+            param = Outcome(param)
         if isinstance(param, BaseChoice):
             continue
         all_subparam_choices = _find_param_choices(param.value_)
@@ -194,7 +194,7 @@ def _extract_choices(grid):
         if param_name in new_grid:
             estimator = clone(param.value_)
             estimator.set_params(**placeholders)
-            new_grid[param_name] = Option(estimator, param.name_, param.in_choice_)
+            new_grid[param_name] = Outcome(estimator, param.name_, param.in_choice_)
     return new_grid
 
 
@@ -224,7 +224,7 @@ def expand_grid(grid):
     for subgrid in grid:
         new_subgrid = {}
         for k, v in subgrid.items():
-            if isinstance(v, Option):
+            if isinstance(v, Outcome):
                 v = Choice([v], name=v.in_choice_)
             new_subgrid[k] = v
         new_grid.append(new_subgrid)

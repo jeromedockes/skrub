@@ -11,8 +11,8 @@ from . import selectors as s
 from ._add_estimator_methods import camel_to_snake
 from ._choice import (
     Choice,
-    Option,
     Optional,
+    Outcome,
     RandomNumber,
     choose,
     choose_float,
@@ -77,14 +77,14 @@ def _to_estimator(step, n_jobs):
         estimator_choices = []
         for opt in estimator.options_:
             if hasattr(opt.value_, "predict"):
-                estimator_choices.append(Option(opt.value_, opt.name_, opt.in_choice_))
+                estimator_choices.append(Outcome(opt.value_, opt.name_, opt.in_choice_))
             elif _is_passthrough(opt.value_):
                 estimator_choices.append(
-                    Option("passthrough", opt.name_, opt.in_choice_)
+                    Outcome("passthrough", opt.name_, opt.in_choice_)
                 )
             else:
                 estimator_choices.append(
-                    Option(
+                    Outcome(
                         step._make_transformer(opt.value_, n_jobs=n_jobs),
                         opt.name_,
                         opt.in_choice_,
