@@ -75,19 +75,21 @@ def _to_estimator(step, n_jobs):
     estimator = step.estimator_
     if isinstance(estimator, Choice):
         estimator_choices = []
-        for opt in estimator.options_:
-            if hasattr(opt.value_, "predict"):
-                estimator_choices.append(Outcome(opt.value_, opt.name_, opt.in_choice_))
-            elif _is_passthrough(opt.value_):
+        for outcome in estimator.outcomes_:
+            if hasattr(outcome.value_, "predict"):
                 estimator_choices.append(
-                    Outcome("passthrough", opt.name_, opt.in_choice_)
+                    Outcome(outcome.value_, outcome.name_, outcome.in_choice_)
+                )
+            elif _is_passthrough(outcome.value_):
+                estimator_choices.append(
+                    Outcome("passthrough", outcome.name_, outcome.in_choice_)
                 )
             else:
                 estimator_choices.append(
                     Outcome(
-                        step._make_transformer(opt.value_, n_jobs=n_jobs),
-                        opt.name_,
-                        opt.in_choice_,
+                        step._make_transformer(outcome.value_, n_jobs=n_jobs),
+                        outcome.name_,
+                        outcome.in_choice_,
                     )
                 )
         return Choice(estimator_choices, name=estimator.name_)
@@ -332,12 +334,12 @@ def _estimator_repr(estimator):
 def _describe_choice(choice, buf):
     buf.write("    choose estimator from:\n")
     dash = "        - "
-    for opt in choice.options_:
-        if opt.name_ is not None:
-            name = f"{opt.name_} = "
+    for outcome in choice.outcomes_:
+        if outcome.name_ is not None:
+            name = f"{outcome.name_} = "
         else:
             name = ""
-        write_indented(f"{dash}{name}", f"{_estimator_repr(opt.value_)}\n", buf)
+        write_indented(f"{dash}{name}", f"{_estimator_repr(outcome.value_)}\n", buf)
 
 
 def _describe_pipeline(named_steps):

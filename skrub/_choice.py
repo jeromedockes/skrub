@@ -26,38 +26,42 @@ class BaseChoice:
 
 @fluent_class
 class Choice(Sequence, BaseChoice):
-    options_: list[Any]
+    outcomes_: list[Any]
     name_: str | None = None
 
     def __post_init__(self):
-        if not self.options_:
-            raise TypeError("Choice should be given at least one option.")
-        self.options_ = list(self.options_)
-        self._update_option_names()
+        if not self.outcomes_:
+            raise TypeError("Choice should be given at least one outcome.")
+        self.outcomes_ = list(self.outcomes_)
+        self._update_outcome_names()
 
-    def _update_option_names(self):
-        for opt in self.options_:
-            opt.in_choice_ = self.name_
+    def _update_outcome_names(self):
+        for outcome in self.outcomes_:
+            outcome.in_choice_ = self.name_
 
     def __getitem__(self, item):
-        return self.options_[item]
+        return self.outcomes_[item]
 
     def __len__(self):
-        return len(self.options_)
+        return len(self.outcomes_)
 
     def __iter__(self):
-        return iter(self.options_)
+        return iter(self.outcomes_)
 
     def _get_factory_repr(self):
-        options_repr = ", ".join(
-            [repr(opt.value_) for opt in self.options_ if opt.name_ is None]
+        outcomes_repr = ", ".join(
+            [
+                repr(outcome.value_)
+                for outcome in self.outcomes_
+                if outcome.name_ is None
+            ]
             + [
-                f"{opt.name_}={opt.value_!r}"
-                for opt in self.options_
-                if opt.name_ is not None
+                f"{outcome.name_}={outcome.value_!r}"
+                for outcome in self.outcomes_
+                if outcome.name_ is not None
             ]
         )
-        return f"choose({options_repr})"
+        return f"choose({outcomes_repr})"
 
 
 @fluent_class
@@ -92,18 +96,18 @@ class RandomNumber(BaseChoice):
 
 class Optional(Choice):
     def _get_factory_repr(self):
-        return f"optional({self.options_[0].value_!r})"
+        return f"optional({self.outcomes_[0].value_!r})"
 
 
-def choose(*options, **named_options):
-    prepared_options = [Outcome(opt) for opt in options] + [
-        Outcome(val, name) for name, val in named_options.items()
+def choose(*outcomes, **named_outcomes):
+    prepared_outcomes = [Outcome(outcome) for outcome in outcomes] + [
+        Outcome(val, name) for name, val in named_outcomes.items()
     ]
-    return Choice(prepared_options)
+    return Choice(prepared_outcomes)
 
 
-def optional(option):
-    return Optional([Outcome(option, "true"), Outcome(None, "false")])
+def optional(value):
+    return Optional([Outcome(value, "true"), Outcome(None, "false")])
 
 
 def choose_float(low, high, log=False):
@@ -126,7 +130,7 @@ class Placeholder:
 
 def unwrap_first(obj):
     if isinstance(obj, Choice):
-        return obj.options_[0].value_
+        return obj.outcomes_[0].value_
     if isinstance(obj, RandomNumber):
         return obj.rvs(random_state=0).value_
     if isinstance(obj, Outcome):
@@ -136,7 +140,7 @@ def unwrap_first(obj):
 
 def unwrap(obj):
     if isinstance(obj, Choice):
-        return [opt.value_ for opt in obj.options_]
+        return [outcome.value_ for outcome in obj.outcomes_]
     if isinstance(obj, Outcome):
         return obj.value_
     return obj
@@ -167,13 +171,13 @@ def _find_param_choices(obj):
 def _extract_choices(grid):
     new_grid = {}
     for param_name, param in grid.items():
-        if isinstance(param, Choice) and len(param.options_) == 1:
-            param = param.options_[0]
+        if isinstance(param, Choice) and len(param.outcomes_) == 1:
+            param = param.outcomes_[0]
         if isinstance(param, (Outcome, BaseChoice)):
             new_grid[param_name] = param
         else:
             # In this case we have a 'raw' estimator that has not been wrapped
-            # in an Option. Therefore it is not part of a choice itself, but it
+            # in an Outcome. Therefore it is not part of a choice itself, but it
             # contains a choice. We pull out the choices to include them in the
             # grid, but the param itself does not need to be in the grid so we
             # don't include it to keep the grid more compact.
@@ -203,11 +207,11 @@ def _split_grid(grid):
     for param_name, param in grid.items():
         if not isinstance(param, Choice):
             continue
-        for idx, option in enumerate(param.options_):
-            if _find_param_choices(option.value_):
+        for idx, outcome in enumerate(param.outcomes_):
+            if _find_param_choices(outcome.value_):
                 grid_1 = grid.copy()
-                grid_1[param_name] = option
-                rest = param.options_[:idx] + param.options_[idx + 1 :]
+                grid_1[param_name] = outcome
+                rest = param.outcomes_[:idx] + param.outcomes_[idx + 1 :]
                 if not rest:
                     return _split_grid(grid_1)
                 grid_2 = grid.copy()
@@ -218,7 +222,7 @@ def _split_grid(grid):
 
 def expand_grid(grid):
     grid = _split_grid(grid)
-    # wrap all Options in a Choice because ParamGrid wants all values to be
+    # wrap all Outcomes in a Choice because ParamGrid wants all values to be
     # iterables.
     new_grid = []
     for subgrid in grid:
@@ -250,12 +254,12 @@ def grid_description(grid):
                 k = v.name_
             if isinstance(v, RandomNumber):
                 write_indented(f"{prefix}{k!r}: ", f"{v._get_factory_repr()}\n", buf)
-            elif len(v.options_) == 1:
-                write_indented(f"{prefix}{k!r}: ", f"{v.options_[0]}\n", buf)
+            elif len(v.outcomes_) == 1:
+                write_indented(f"{prefix}{k!r}: ", f"{v.outcomes_[0]}\n", buf)
             else:
                 buf.write(f"{prefix}{k!r}:\n")
-                for opt in v.options_:
-                    write_indented("      - ", f"{opt}\n", buf)
+                for outcome in v.outcomes_:
+                    write_indented("      - ", f"{outcome}\n", buf)
             prefix = "  "
     return buf.getvalue()
 
