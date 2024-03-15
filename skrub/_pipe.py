@@ -300,7 +300,9 @@ class Pipe:
                 row[choice_name] = value
                 param_names.add(choice_name)
             all_rows.append(row)
-            cols = ["mean_score"] + list(param_names) + ["fit_time", "std_score"]
+        all_ordered_param_names = _get_all_param_names(self._get_param_grid())
+        ordered_param_names = [n for n in all_ordered_param_names if n in param_names]
+        cols = ["mean_score"] + ordered_param_names + ["fit_time", "std_score"]
         return pd.DataFrame(all_rows, columns=cols).sort_values(
             "mean_score", ascending=False
         )
@@ -384,3 +386,13 @@ def _describe_pipeline(named_steps):
                 buf,
             )
     return buf.getvalue()
+
+
+def _get_all_param_names(grid):
+    names = {}
+    for subgrid in grid:
+        for k, v in subgrid.items():
+            if v.name_ is not None:
+                k = v.name_
+            names[k] = None
+    return list(names)
