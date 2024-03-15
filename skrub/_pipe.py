@@ -9,7 +9,7 @@ from sklearn.pipeline import Pipeline
 from . import _dataframe as sbd
 from . import selectors as s
 from ._add_estimator_methods import camel_to_snake
-from ._choice import (
+from ._tuning import (
     Choice,
     Optional,
     Outcome,
