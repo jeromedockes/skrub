@@ -1,54 +1,39 @@
 import io
 from collections.abc import Sequence
+from typing import Any
 
-import numpy as np
 from scipy import stats
 from sklearn.base import clone
 
+from ._fluent_classes import fluent_class
 
+
+@fluent_class
 class Option:
-    def __init__(self, value, name=None, in_choice=None):
-        self.value_ = value
-        self.name_ = name
-        self.in_choice_ = in_choice
-
-    def name(self, new_name):
-        self.name_ = new_name
-
-    def in_choice(self, new_in_choice):
-        self.in_choice_ = new_in_choice
+    value_: Any
+    name_: str | None = None
+    in_choice_: str | None = None
 
     def __str__(self):
         if self.name_ is not None:
             return repr(self.name_)
         return repr(self.value_)
 
-    def __repr__(self):
-        parts = [f"{self.value_!r}"]
-        if self.name_ is not None:
-            parts.append(f"name={self.name_!r}")
-        if self.in_choice_ is not None:
-            parts.append(f"in_choice={self.in_choice_!r}")
-        args = ", ".join(parts)
-        return f"Option({args})"
-
 
 class BaseChoice:
     pass
 
 
+@fluent_class
 class Choice(Sequence, BaseChoice):
-    def __init__(self, options, name=None):
-        if not options:
-            raise TypeError("Choice should be given at least one option.")
-        self.options_ = list(options)
-        self.name_ = name
-        self._update_option_names()
+    options_: list[Any]
+    name_: str | None = None
 
-    def name(self, name):
-        self.name_ = name
+    def __post_init__(self):
+        if not self.options_:
+            raise TypeError("Choice should be given at least one option.")
+        self.options_ = list(self.options_)
         self._update_option_names()
-        return self
 
     def _update_option_names(self):
         for opt in self.options_:
@@ -63,7 +48,7 @@ class Choice(Sequence, BaseChoice):
     def __iter__(self):
         return iter(self.options_)
 
-    def __repr__(self):
+    def _get_factory_repr(self):
         options_repr = ", ".join(
             [repr(opt.value_) for opt in self.options_ if opt.name_ is None]
             + [
@@ -72,8 +57,7 @@ class Choice(Sequence, BaseChoice):
                 if opt.name_ is not None
             ]
         )
-        name_repr = "" if self.name_ is None else f".name({self.name_!r})"
-        return f"choose({options_repr}){name_repr}"
+        return f"choose({options_repr})"
 
 
 def _distrib_repr(distrib):
@@ -87,38 +71,29 @@ def _distrib_repr(distrib):
         return repr(distrib)
 
 
+@fluent_class
 class RandomChoice(BaseChoice):
-    def __init__(self, distrib, name=None, description=None, to_int=False):
-        self.distrib_ = distrib
-        self.name_ = name
-        self._description = description
-        self._to_int = to_int
-
-    def name(self, name):
-        self.name_ = name
-        return self
+    distrib_: Any
+    name_: str | None = None
+    description_: str | None = None
+    to_int_: bool = False
 
     def rvs(self, size=None, random_state=None):
         value = self.distrib_.rvs(size=size, random_state=random_state)
-        if self._to_int:
-            value = np.round(value).astype(int)
+        if self.to_int_:
+            value = value.astype(int)
         return Option(value, in_choice=self.name_)
 
-    def _repr_no_name(self):
-        if self._description is not None:
-            return self._description
+    def _get_factory_repr(self):
+        if self.description_ is not None:
+            return self.description_
         distrib_repr = _distrib_repr(self.distrib_)
         return f"{self.__class__.__name__}({distrib_repr})"
 
-    def __repr__(self):
-        name_repr = "" if self.name_ is None else f".name({self.name_!r})"
-        return f"{self._repr_no_name()}{name_repr}"
-
 
 class Optional(Choice):
-    def __repr__(self):
-        name_repr = "" if self.name_ is None else f".name({self.name_!r})"
-        return f"optional({self.options_[0].value_!r}){name_repr}"
+    def _get_factory_repr(self):
+        return f"optional({self.options_[0].value_!r})"
 
 
 def choose(*options, **named_options):
@@ -292,7 +267,7 @@ def grid_description(grid):
             if v.name_ is not None:
                 k = v.name_
             if isinstance(v, RandomChoice):
-                write_indented(f"{prefix}{k!r}: ", f"{v._repr_no_name()}\n", buf)
+                write_indented(f"{prefix}{k!r}: ", f"{v._get_factory_repr()}\n", buf)
             elif len(v.options_) == 1:
                 write_indented(f"{prefix}{k!r}: ", f"{v.options_[0]}\n", buf)
             else:

@@ -1,6 +1,9 @@
+from typing import Any
+
 from .. import _dataframe as sbd
 from .._add_estimator_methods import add_estimator_methods
 from .._dispatch import dispatch
+from .._fluent_classes import fluent_class
 from ._utils import list_difference, list_intersect
 
 
@@ -137,25 +140,13 @@ class Selector:
         return PipeStep(cols=self, estimator=estimator)
 
 
+@fluent_class
 class PipeStep:
-    def __init__(self, cols, estimator):
-        self.estimator_ = estimator
-        self.cols_ = cols
-        self.name_ = None
-        self.keep_original_ = False
-        self.rename_columns_ = "{}"
-
-    def name(self, new_name):
-        self.name_ = new_name
-        return self
-
-    def keep_original(self, keep=True):
-        self.keep_original_ = keep
-        return self
-
-    def rename_columns(self, new_rename_columns):
-        self.rename_columns_ = new_rename_columns
-        return self
+    cols_: Selector
+    estimator_: Any
+    name_: str | None = None
+    keep_original_: bool = False
+    rename_columns_: str = "{}"
 
     def _make_transformer(self, estimator=None, n_jobs=1):
         if estimator is None:
