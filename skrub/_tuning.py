@@ -220,10 +220,20 @@ def _split_grid(grid):
     return [grid]
 
 
+def _check_name_collisions(subgrid):
+    all_names = {}
+    for param_id, param in subgrid.items():
+        name = param.name_ or param_id
+        if name in all_names:
+            raise ValueError(
+                f"Parameter alias {name!r} used for "
+                f"several parameters: {all_names[name], (param_id, param)}."
+            )
+        all_names[name] = (param_id, param)
+
+
 def expand_grid(grid):
     grid = _split_grid(grid)
-    # wrap all Outcomes in a Choice because ParamGrid wants all values to be
-    # iterables.
     new_grid = []
     for subgrid in grid:
         new_subgrid = {}
@@ -232,6 +242,7 @@ def expand_grid(grid):
                 v = Choice([v], name=v.in_choice_)
             new_subgrid[k] = v
         new_grid.append(new_subgrid)
+        _check_name_collisions(new_subgrid)
     return new_grid
 
 
