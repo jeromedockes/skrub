@@ -25,7 +25,6 @@ def fluent_class(cls):
     cls._kw_fields = kwargs
     cls.__init__ = _make_init(args, kwargs)
     cls.__repr__ = _repr
-    _setattr_default(cls, "_copy", _copy)
     _setattr_default(cls, "_get_options_repr", _get_options_repr)
     _setattr_default(cls, "_get_pos_args_repr", _get_pos_args_repr)
     _setattr_default(cls, "_get_factory_repr", _get_factory_repr)
@@ -64,10 +63,6 @@ def _make_init(args, kwargs):
         ]
     )
     return _make_func(lines)
-
-
-def _copy(self):
-    return self.__class__(**self._to_dict())
 
 
 def _make_setter(arg):
