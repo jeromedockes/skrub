@@ -59,15 +59,25 @@ def _get_name(step):
 
 
 def _to_step(obj):
-    if hasattr(obj, "estimator_"):
-        return obj
-    return s.all().use(obj)
+    if not hasattr(obj, "estimator_"):
+        obj = s.all().use(obj)
+    if isinstance(obj.estimator_, Choice):
+        obj = obj._with_params(estimator=obj.estimator_.map_values(_check_passthrough))
+    else:
+        obj = obj._with_params(estimator=_check_passthrough(obj.estimator_))
+    return obj
 
 
 def _is_passthrough(estimator):
     return (
         estimator is None or isinstance(estimator, str) and estimator == "passthrough"
     )
+
+
+def _check_passthrough(estimator):
+    if _is_passthrough(estimator):
+        return "passthrough"
+    return estimator
 
 
 def _check_estimator(estimator, step, n_jobs):
@@ -336,12 +346,6 @@ class Pipe:
         )
 
 
-def _estimator_repr(estimator):
-    if _is_passthrough(estimator):
-        return "passthrough"
-    return repr(estimator)
-
-
 def _describe_choice(choice, buf):
     buf.write("    choose estimator from:\n")
     dash = "        - "
@@ -350,7 +354,7 @@ def _describe_choice(choice, buf):
             name = f"{outcome.name_} = "
         else:
             name = ""
-        write_indented(f"{dash}{name}", f"{_estimator_repr(outcome.value_)}\n", buf)
+        write_indented(f"{dash}{name}", f"{outcome.value_!r}\n", buf)
 
 
 def _describe_pipeline(named_steps):
@@ -367,7 +371,7 @@ def _describe_pipeline(named_steps):
         else:
             write_indented(
                 "    estimator: ",
-                f"{_estimator_repr(unwrap_first(step.estimator_))}\n",
+                f"{unwrap_first(step.estimator_)!r}\n",
                 buf,
             )
     return buf.getvalue()
