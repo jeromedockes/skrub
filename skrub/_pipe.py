@@ -12,7 +12,6 @@ from ._add_estimator_methods import camel_to_snake
 from ._tuning import (
     Choice,
     Optional,
-    Outcome,
     RandomNumber,
     choose,
     choose_float,
@@ -71,33 +70,19 @@ def _is_passthrough(estimator):
     )
 
 
+def _check_estimator(estimator, step, n_jobs):
+    if hasattr(estimator, "predict"):
+        return estimator
+    if _is_passthrough(estimator):
+        return "passthrough"
+    return step._make_transformer(estimator, n_jobs=n_jobs)
+
+
 def _to_estimator(step, n_jobs):
     estimator = step.estimator_
     if isinstance(estimator, Choice):
-        estimator_choices = []
-        for outcome in estimator.outcomes_:
-            if hasattr(outcome.value_, "predict"):
-                estimator_choices.append(
-                    Outcome(outcome.value_, outcome.name_, outcome.in_choice_)
-                )
-            elif _is_passthrough(outcome.value_):
-                estimator_choices.append(
-                    Outcome("passthrough", outcome.name_, outcome.in_choice_)
-                )
-            else:
-                estimator_choices.append(
-                    Outcome(
-                        step._make_transformer(outcome.value_, n_jobs=n_jobs),
-                        outcome.name_,
-                        outcome.in_choice_,
-                    )
-                )
-        return Choice(estimator_choices, name=estimator.name_)
-    if hasattr(estimator, "predict"):
-        return estimator
-    elif _is_passthrough(estimator):
-        return "passthrough"
-    return step._make_transformer(estimator, n_jobs=n_jobs)
+        return estimator.map_values(lambda v: _check_estimator(v, step, n_jobs))
+    return _check_estimator(estimator, step, n_jobs)
 
 
 class Pipe:

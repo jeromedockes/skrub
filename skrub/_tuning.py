@@ -19,6 +19,9 @@ class Outcome:
             return repr(self.name_)
         return repr(self.value_)
 
+    def value(self, new_value):
+        return self._with_params(value=new_value)
+
 
 class BaseChoice:
     pass
@@ -62,6 +65,12 @@ class Choice(Sequence, BaseChoice):
             ]
         )
         return f"choose({outcomes_repr})"
+
+    def map_values(self, func):
+        outcomes = []
+        for out in self.outcomes_:
+            outcomes.append(out.value(func(out.value_)))
+        return self.__class__(**(self._to_dict() | {"outcomes": outcomes}))
 
 
 @fluent_class

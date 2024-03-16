@@ -30,6 +30,7 @@ def fluent_class(cls):
     _setattr_default(cls, "_get_pos_args_repr", _get_pos_args_repr)
     _setattr_default(cls, "_get_factory_repr", _get_factory_repr)
     _setattr_default(cls, "_to_dict", _to_dict)
+    _setattr_default(cls, "_with_params", _with_params)
     for arg in [*args, *kwargs]:
         _setattr_default(cls, arg, _make_setter(arg))
     return cls
@@ -57,7 +58,10 @@ def _make_init(args, kwargs):
     lines = (
         [f"def __init__({sig}):\n"]
         + [f"    self.{name}_ = {name}\n" for name in [*args, *kwargs]]
-        + ["    if hasattr(self, '__post_init__'):\n", "        self.__post_init__()\n"]
+        + [
+            "    if hasattr(self, '__post_init__'):\n",
+            "        self.__post_init__()\n",
+        ]
     )
     return _make_func(lines)
 
@@ -69,11 +73,7 @@ def _copy(self):
 def _make_setter(arg):
     lines = [
         f"def {arg}(self, new):\n",
-        (
-            "    params = self._to_dict()\n"
-            f"    params['{arg}'] = new\n"
-            "    return self.__class__(**params)\n"
-        ),
+        f"    return self._with_params({arg}=new)\n",
     ]
     return _make_func(lines)
 
@@ -83,6 +83,10 @@ def _to_dict(self):
     for k in self.__class__._fields:
         d[k] = getattr(self, k + "_")
     return d
+
+
+def _with_params(self, **new_params):
+    return self.__class__(**(self._to_dict() | new_params))
 
 
 def _get_pos_args_repr(self):
