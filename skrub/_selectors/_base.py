@@ -190,7 +190,7 @@ class Inv(Selector):
         return not self.complement.matches(col)
 
     def __repr__(self):
-        return f"~({self.complement!r})"
+        return f"(~{self.complement!r})"
 
 
 class Or(Selector):
