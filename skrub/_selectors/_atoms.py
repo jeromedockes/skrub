@@ -75,26 +75,3 @@ class FilterNames(Selector):
 
 def filter_names(predicate):
     return FilterNames(predicate)
-
-
-class CreatedBy(Selector):
-    def __init__(self, *transformers):
-        self.transformers = transformers
-
-    def matches(self, col):
-        col_name = sbd.name(col)
-        for step in self.transformers:
-            if hasattr(step, "created_outputs_"):
-                if col_name in step.created_outputs_:
-                    return True
-            elif col_name in step.get_feature_names_out():
-                return True
-        return False
-
-    def __repr__(self):
-        transformers_repr = f"<any of {len(self.transformers)} transformers>"
-        return f"created_by({transformers_repr})"
-
-
-def created_by(*transformers):
-    return CreatedBy(*transformers)

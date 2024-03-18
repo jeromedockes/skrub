@@ -12,6 +12,7 @@ from ._clean_null_strings import CleanNullStrings
 from ._datetime_encoder import EncodeDatetime
 from ._gap_encoder import GapEncoder
 from ._pandas_convert_dtypes import PandasConvertDTypes
+from ._select_cols import Drop
 from ._to_categorical import ToCategorical
 from ._to_datetime import ToDatetime
 from ._to_float import ToFloat32
@@ -26,6 +27,21 @@ LOW_CARDINALITY_TRANSFORMER = OneHotEncoder(
 )
 DATETIME_TRANSFORMER = EncodeDatetime()
 NUMERIC_TRANSFORMER = ToFloat32()
+
+
+class _CreatedBy(s.Selector):
+    def __init__(self, *transformers):
+        self.transformers = transformers
+
+    def matches(self, col):
+        col_name = sbd.name(col)
+        for step in self.transformers:
+            if hasattr(step, "created_outputs_"):
+                if col_name in step.created_outputs_:
+                    return True
+            elif col_name in step.get_feature_names_out():
+                return True
+        return False
 
 
 def _make_table_vectorizer_pipeline(
@@ -62,7 +78,7 @@ def _make_table_vectorizer_pipeline(
             high_cardinality_transformer, n_jobs=n_jobs, columnwise=True
         ),
     ]
-    remainder = cols - s.created_by(*feature_extraction_steps)
+    remainder = cols - _CreatedBy(*feature_extraction_steps)
     remainder_steps = [
         remainder.make_transformer(
             remainder_transformer, n_jobs=n_jobs, columnwise=True
@@ -79,20 +95,6 @@ class PassThrough(BaseEstimator):
 
     def transform(self, column):
         return column
-
-    def fit(self, column):
-        self.fit_transform(column)
-        return self
-
-
-class Drop(BaseEstimator):
-    __single_column_transformer__ = True
-
-    def fit_transform(self, column):
-        return []
-
-    def transform(self, column):
-        return []
 
     def fit(self, column):
         self.fit_transform(column)
