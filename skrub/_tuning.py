@@ -2,8 +2,10 @@ import io
 from collections.abc import Sequence
 from typing import Any
 
+import numpy as np
 from scipy import stats
 from sklearn.base import clone
+from sklearn.utils import check_random_state
 
 from ._fluent_classes import fluent_class
 
@@ -80,6 +82,15 @@ class Choice(Sequence, BaseChoice):
         return self.__class__(**(self._to_dict() | {"outcomes": outcomes}))
 
 
+def _check_bounds(low, high, log):
+    if high < low:
+        raise ValueError(
+            f"'high' must be greater than 'low', got low={low}, high={high}"
+        )
+    if log and low <= 0:
+        raise ValueError(f"To use log space 'low' must be > 0, got low={low}")
+
+
 @fluent_class
 class NumericChoice(BaseChoice):
     low_: float
@@ -89,6 +100,7 @@ class NumericChoice(BaseChoice):
     name_: str = None
 
     def __post_init__(self):
+        _check_bounds(self.low_, self.high_, self.log_)
         if self.log_:
             self._distrib = stats.loguniform(self.low_, self.high_)
         else:
@@ -104,6 +116,43 @@ class NumericChoice(BaseChoice):
         parts = [repr(self.low_), repr(self.high_)]
         if self.log_:
             parts.append("log=True")
+        args = ", ".join(parts)
+        if self.to_int_:
+            return f"choose_int({args})"
+        return f"choose_float({args})"
+
+
+@fluent_class
+class DiscretizedNumericChoice(NumericChoice):
+    low_: float
+    high_: float
+    n_steps_: int
+    log_: bool
+    to_int_: bool
+    name_: str = None
+
+    def __post_init__(self):
+        _check_bounds(self.low_, self.high_, self.log_)
+        if self.log_:
+            low, high = np.log(self.low_), np.log(self.high_)
+        else:
+            low, high = self.low_, self.high_
+        self.grid = np.linspace(low, high, self.n_steps_)
+        if self.log_:
+            self.grid = np.exp(self.grid)
+        if self.to_int_:
+            self.grid = np.round(self.grid).astype(int)
+
+    def rvs(self, size=None, random_state=None):
+        random_state = check_random_state(random_state)
+        value = random_state.choice(self.grid, size=size)
+        return Outcome(value, in_choice=self.name_)
+
+    def _get_factory_repr(self):
+        parts = [repr(self.low_), repr(self.high_)]
+        if self.log_:
+            parts.append("log=True")
+        parts.append(f"n_steps={self.n_steps_}")
         args = ", ".join(parts)
         if self.to_int_:
             return f"choose_int({args})"
@@ -126,12 +175,16 @@ def optional(value):
     return Optional([Outcome(value, "true"), Outcome(None, "false")])
 
 
-def choose_float(low, high, log=False):
-    return NumericChoice(low, high, log=log, to_int=False)
+def choose_float(low, high, log=False, n_steps=None):
+    if n_steps is None:
+        return NumericChoice(low, high, log=log, to_int=False)
+    return DiscretizedNumericChoice(low, high, log=log, to_int=False, n_steps=n_steps)
 
 
-def choose_int(low, high, log=False):
-    return NumericChoice(low, high, log=log, to_int=True)
+def choose_int(low, high, log=False, n_steps=None):
+    if n_steps is None:
+        return NumericChoice(low, high, log=log, to_int=True)
+    return DiscretizedNumericChoice(low, high, log=log, to_int=True, n_steps=n_steps)
 
 
 class Placeholder:
