@@ -13,9 +13,9 @@ TODO
 ... )
 >>> from skrub import selectors as s
 >>> s.select(df, ["ID", "kind"])
-  kind  ID
-0   A4   4
-1   A3   3
+   ID kind
+0   4   A4
+1   3   A3
 >>> s.select(df, s.all())
    height_mm  width_mm kind  ID
 0      297.0     210.0   A4   4
