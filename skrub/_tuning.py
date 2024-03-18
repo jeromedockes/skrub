@@ -42,6 +42,13 @@ class Choice(Sequence, BaseChoice):
         for outcome in self.outcomes_:
             outcome.in_choice_ = self.name_
 
+    def take_outcome(self, idx):
+        out = self.outcomes_[idx]
+        rest = self.outcomes_[:idx] + self.outcomes_[idx + 1 :]
+        if not rest:
+            return out, None
+        return out, self._with_params(outcomes=rest)
+
     def __getitem__(self, item):
         return self.outcomes_[item]
 
@@ -207,7 +214,7 @@ def _extract_choices(grid):
         if param_name in new_grid:
             estimator = clone(param.value_)
             estimator.set_params(**placeholders)
-            new_grid[param_name] = Outcome(estimator, param.name_, param.in_choice_)
+            new_grid[param_name] = param._with_params(value=estimator)
     return new_grid
 
 
@@ -220,11 +227,11 @@ def _split_grid(grid):
             if _find_param_choices(outcome.value_):
                 grid_1 = grid.copy()
                 grid_1[param_name] = outcome
-                rest = param.outcomes_[:idx] + param.outcomes_[idx + 1 :]
-                if not rest:
+                _, rest = param.take_outcome(idx)
+                if rest is None:
                     return _split_grid(grid_1)
                 grid_2 = grid.copy()
-                grid_2[param_name] = Choice(rest, name=param.name_)
+                grid_2[param_name] = rest
                 return [*_split_grid(grid_1), *_split_grid(grid_2)]
     return [grid]
 
