@@ -3,18 +3,14 @@ import re
 
 from .. import _dataframe as sbd
 from ._base import Selector
-from ._utils import list_difference, list_intersect
 
 
 class Glob(Selector):
     def __init__(self, pattern):
         self.pattern = pattern
 
-    def select(self, df, ignore=()):
-        df_cols = sbd.column_names(df)
-        cols = set(df_cols).difference(ignore)
-        selected = fnmatch.filter(cols, self.pattern)
-        return list_intersect(df_cols, selected)
+    def matches(self, col):
+        return fnmatch.fnmatch(sbd.name(col), self.pattern)
 
     def __repr__(self):
         return f"glob({self.pattern!r})"
@@ -28,10 +24,8 @@ class Regex(Selector):
     def __init__(self, pattern):
         self.pattern = pattern
 
-    def select(self, df, ignore=()):
-        pat = re.compile(self.pattern)
-        cols = list_difference(sbd.column_names(df), ignore)
-        return [c for c in cols if pat.match(c) is not None]
+    def matches(self, col):
+        return re.match(self.pattern, sbd.name(col)) is not None
 
     def __repr__(self):
         return f"regex({self.pattern!r})"
@@ -49,22 +43,16 @@ class Filter(Selector):
             raise ValueError(f"'on_error' must be one of {allowed}. Got {on_error!r}")
         self.on_error = on_error
 
-    def select(self, df, ignore=()):
-        cols = list_difference(sbd.column_names(df), ignore)
-        result = []
-        for col_name in cols:
-            try:
-                accept = self.predicate(sbd.col(df, col_name))
-            except Exception:
-                if self.on_error == "raise":
-                    raise
-                if self.on_error == "accept":
-                    accept = True
-                assert self.on_error == "reject"
-                accept = False
-            if accept:
-                result.append(col_name)
-        return result
+    def matches(self, col):
+        try:
+            return self.predicate(col)
+        except Exception:
+            if self.on_error == "raise":
+                raise
+            if self.on_error == "accept":
+                return True
+            assert self.on_error == "reject"
+            return False
 
     def __repr__(self):
         return f"filter({self.predicate!r})"
@@ -78,9 +66,8 @@ class FilterNames(Selector):
     def __init__(self, predicate):
         self.predicate = predicate
 
-    def select(self, df, ignore=()):
-        cols = list_difference(sbd.column_names(df), ignore)
-        return [c for c in cols if self.predicate(c)]
+    def matches(self, col):
+        return self.predicate(sbd.name(col))
 
     def __repr__(self):
         return f"filter_names({self.predicate!r})"
@@ -94,14 +81,15 @@ class CreatedBy(Selector):
     def __init__(self, *transformers):
         self.transformers = transformers
 
-    def select(self, df, ignore=()):
-        all_created = set()
+    def matches(self, col):
+        col_name = sbd.name(col)
         for step in self.transformers:
             if hasattr(step, "created_outputs_"):
-                all_created.update(step.created_outputs_)
-            else:
-                all_created.update(step.get_feature_names_out())
-        return list_intersect(sbd.column_names(df), all_created.difference(ignore))
+                if col_name in step.created_outputs_:
+                    return True
+            elif col_name in step.get_feature_names_out():
+                return True
+        return False
 
     def __repr__(self):
         transformers_repr = f"<any of {len(self.transformers)} transformers>"

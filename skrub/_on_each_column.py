@@ -156,7 +156,7 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
 
     def fit_transform(self, X, y=None):
         del y
-        self._columns = _selectors.make_selector(self.cols).select(X)
+        self._columns = _selectors.make_selector(self.cols).expand(X)
         results = []
         all_columns = sbd.column_names(X)
         parallel = Parallel(n_jobs=self.n_jobs)

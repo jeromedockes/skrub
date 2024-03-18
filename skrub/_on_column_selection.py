@@ -102,7 +102,7 @@ class OnColumnSelection(TransformerMixin, BaseEstimator, auto_wrap_output_keys=(
 
     def fit_transform(self, X, y=None):
         self.all_inputs_ = sbd.column_names(X)
-        self._columns = _selectors.make_selector(self.cols).select(X)
+        self._columns = _selectors.make_selector(self.cols).expand(X)
         to_transform = _selectors.select(X, self._columns)
         if self.keep_original:
             passthrough = X

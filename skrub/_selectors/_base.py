@@ -4,31 +4,22 @@ from .. import _dataframe as sbd
 from .._add_estimator_methods import add_estimator_methods
 from .._dispatch import dispatch
 from .._fluent_classes import fluent_class
-from ._utils import list_difference, list_intersect
 
 
 def all():
     return All()
 
 
-def nothing():
-    return Nothing()
-
-
 def cols(*columns):
-    if not columns:
-        return nothing()
-    return ExactCols(columns)
+    return Cols(columns)
 
 
 def name_in(*columns):
-    if not columns:
-        return nothing()
-    return NameIn(columns)
+    return Cols(columns)
 
 
 def inv(obj):
-    return ~_make_selector_in_expr(obj)
+    return ~make_selector(obj)
 
 
 def make_selector(obj):
@@ -39,10 +30,6 @@ def make_selector(obj):
     if not hasattr(obj, "__iter__"):
         raise ValueError(f"selector not understood: {obj}")
     return cols(*obj)
-
-
-def _make_selector_in_expr(obj):
-    return make_selector(obj)._in_expr()
 
 
 @dispatch
@@ -61,50 +48,47 @@ def _select_col_names_polars(df, col_names):
 
 
 def select(df, selector):
-    return _select_col_names(df, make_selector(selector).select(df))
+    return _select_col_names(df, make_selector(selector).expand(df))
 
 
 @add_estimator_methods
 class Selector:
-    def select(self, df, ignore=()):
+    def matches(self, col):
         raise NotImplementedError()
 
-    def _in_expr(self):
-        return self
+    def expand(self, df):
+        matching_col_names = []
+        for col_name in sbd.column_names(df):
+            col = sbd.col(df, col_name)
+            if self.matches(col):
+                matching_col_names.append(col_name)
+        return matching_col_names
 
     def __invert__(self):
         return Inv(self)
 
     def __or__(self, other):
-        return _make_selector_in_expr(other).__ror__(self)
+        return Or(self, other)
 
     def __ror__(self, other):
-        if not isinstance(other, Selector):
-            return _make_selector_in_expr(other) | self
         return Or(other, self)
 
     def __and__(self, other):
-        return _make_selector_in_expr(other).__rand__(self)
+        return And(self, other)
 
     def __rand__(self, other):
-        if not isinstance(other, Selector):
-            return _make_selector_in_expr(other) & self
         return And(other, self)
 
     def __sub__(self, other):
-        return _make_selector_in_expr(other).__rsub__(self)
+        return Sub(self, other)
 
     def __rsub__(self, other):
-        if not isinstance(other, Selector):
-            return _make_selector_in_expr(other) - self
         return Sub(other, self)
 
     def __xor__(self, other):
-        return _make_selector_in_expr(other).__rxor__(self)
+        return XOr(self, other)
 
     def __rxor__(self, other):
-        if not isinstance(other, Selector):
-            return _make_selector_in_expr(other) ^ self
         return XOr(other, self)
 
     def make_transformer(
@@ -160,73 +144,11 @@ class PipeStep:
 
 
 class All(Selector):
-    def select(self, df, ignore=()):
-        return list_difference(sbd.column_names(df), ignore)
+    def matches(self, col):
+        return True
 
     def __repr__(self):
         return "all()"
-
-    def __invert__(self):
-        return nothing()
-
-    def __or__(self, other):
-        return all()
-
-    def __ror__(self, other):
-        return all()
-
-    def __and__(self, other):
-        return _make_selector_in_expr(other)
-
-    def __rand__(self, other):
-        return _make_selector_in_expr(other)
-
-    def __sub__(self, other):
-        return inv(other)
-
-    def __rsub__(self, other):
-        return nothing()
-
-    def __xor__(self, other):
-        return inv(other)
-
-    def __rxor__(self, other):
-        return inv(other)
-
-
-class Nothing(Selector):
-    def select(self, df, ignore=()):
-        return []
-
-    def __repr__(self):
-        return "()"
-
-    def __invert__(self):
-        return all()
-
-    def __or__(self, other):
-        return _make_selector_in_expr(other)
-
-    def __ror__(self, other):
-        return _make_selector_in_expr(other)
-
-    def __and__(self, other):
-        return nothing()
-
-    def __rand__(self, other):
-        return nothing()
-
-    def __sub__(self, other):
-        return nothing()
-
-    def __rsub__(self, other):
-        return _make_selector_in_expr(other)
-
-    def __xor__(self, other):
-        return _make_selector_in_expr(other)
-
-    def __rxor__(self, other):
-        return _make_selector_in_expr(other)
 
 
 def _check_string_list(columns):
@@ -240,68 +162,21 @@ def _check_string_list(columns):
     return columns
 
 
-class NameIn(Selector):
+class Cols(Selector):
     def __init__(self, columns):
         self.columns = _check_string_list(columns)
 
-    def select(self, df, ignore=()):
-        all_selected = set(self.columns).difference(ignore)
-        return list_intersect(sbd.column_names(df), all_selected)
+    def matches(self, col):
+        return sbd.name(col) in self.columns
 
-    def _set_op(self, other, op):
-        other = _make_selector_in_expr(other)
-        if not isinstance(other, NameIn):
-            return getattr(super(), op)(other)
-        self_cols = set(self.columns)
-        other_cols = set(other.columns)
-        result_cols = getattr(self_cols, op)(other_cols)
-        return name_in(*sorted(result_cols))
-
-    def __repr__(self):
-        args = ", ".join(map(repr, self.columns))
-        return f"name_in({args})"
-
-    def __or__(self, other):
-        return self._set_op(other, "__or__")
-
-    def __ror__(self, other):
-        return self._set_op(other, "__ror__")
-
-    def __and__(self, other):
-        return self._set_op(other, "__and__")
-
-    def __rand__(self, other):
-        return self._set_op(other, "__rand__")
-
-    def __sub__(self, other):
-        return self._set_op(other, "__sub__")
-
-    def __rsub__(self, other):
-        return self._set_op(other, "__rsub__")
-
-    def __xor__(self, other):
-        return self._set_op(other, "__xor__")
-
-    def __rxor__(self, other):
-        return self._set_op(other, "__rxor__")
-
-
-class ExactCols(Selector):
-    def __init__(self, columns):
-        self.columns = _check_string_list(columns)
-
-    def select(self, df, ignore=()):
-        all_selected = set(self.columns).difference(ignore)
-        missing = all_selected.difference(sbd.column_names(df))
+    def expand(self, df):
+        missing = set(self.columns).difference(sbd.column_names(df))
         if missing:
             raise ValueError(
                 "The following columns are requested for selection but "
                 f"missing from dataframe: {list(missing)}"
             )
-        return list_intersect(sbd.column_names(df), all_selected)
-
-    def _in_expr(self):
-        return NameIn(self.columns)
+        return self.columns
 
     def __repr__(self):
         return repr(self.columns)
@@ -309,11 +184,10 @@ class ExactCols(Selector):
 
 class Inv(Selector):
     def __init__(self, complement):
-        self.complement = _make_selector_in_expr(complement)
+        self.complement = make_selector(complement)
 
-    def select(self, df, ignore=()):
-        inv_selected = self.complement.select(df, ignore)
-        return list_difference(sbd.column_names(df), set(inv_selected).union(ignore))
+    def matches(self, col):
+        return not self.complement.matches(col)
 
     def __repr__(self):
         return f"~({self.complement!r})"
@@ -321,15 +195,11 @@ class Inv(Selector):
 
 class Or(Selector):
     def __init__(self, left, right):
-        self.left = _make_selector_in_expr(left)
-        self.right = _make_selector_in_expr(right)
+        self.left = make_selector(left)
+        self.right = make_selector(right)
 
-    def select(self, df, ignore=()):
-        df_cols = sbd.column_names(df)
-        left_selected = set(self.left.select(df, ignore))
-        right_selected = self.right.select(df, ignore=left_selected.union(ignore))
-        all_selected = left_selected.union(right_selected).difference(ignore)
-        return list_intersect(df_cols, all_selected)
+    def matches(self, col):
+        return self.left.matches(col) or self.right.matches(col)
 
     def __repr__(self):
         return f"({self.left!r} | {self.right!r})"
@@ -337,16 +207,11 @@ class Or(Selector):
 
 class And(Selector):
     def __init__(self, left, right):
-        self.left = _make_selector_in_expr(left)
-        self.right = _make_selector_in_expr(right)
+        self.left = make_selector(left)
+        self.right = make_selector(right)
 
-    def select(self, df, ignore=()):
-        df_cols = sbd.column_names(df)
-        left_selected = set(self.left.select(df, ignore))
-        left_unselected = set(df_cols).difference(left_selected)
-        right_selected = self.right.select(df, ignore=left_unselected.union(ignore))
-        all_selected = left_selected.intersection(right_selected).difference(ignore)
-        return list_intersect(df_cols, all_selected)
+    def matches(self, col):
+        return self.left.matches(col) and self.right.matches(col)
 
     def __repr__(self):
         return f"({self.left!r} & {self.right!r})"
@@ -354,16 +219,11 @@ class And(Selector):
 
 class Sub(Selector):
     def __init__(self, left, right):
-        self.left = _make_selector_in_expr(left)
-        self.right = _make_selector_in_expr(right)
+        self.left = make_selector(left)
+        self.right = make_selector(right)
 
-    def select(self, df, ignore=()):
-        df_cols = sbd.column_names(df)
-        left_selected = set(self.left.select(df, ignore))
-        left_unselected = set(df_cols).difference(left_selected)
-        right_selected = self.right.select(df, ignore=left_unselected.union(ignore))
-        all_selected = left_selected.difference(right_selected).difference(ignore)
-        return list_intersect(df_cols, all_selected)
+    def matches(self, col):
+        return self.left.matches(col) and (not self.right.matches(col))
 
     def __repr__(self):
         return f"({self.left!r} - {self.right!r})"
@@ -371,15 +231,11 @@ class Sub(Selector):
 
 class XOr(Selector):
     def __init__(self, left, right):
-        self.left = _make_selector_in_expr(left)
-        self.right = _make_selector_in_expr(right)
+        self.left = make_selector(left)
+        self.right = make_selector(right)
 
-    def select(self, df, ignore=()):
-        df_cols = sbd.column_names(df)
-        left_selected = self.left.select(df, ignore)
-        right_selected = self.right.select(df, ignore)
-        all_selected = set(left_selected).symmetric_difference(right_selected)
-        return list_intersect(df_cols, all_selected.difference(ignore))
+    def matches(self, col):
+        return self.left.matches(col) ^ self.right.matches(col)
 
     def __repr__(self):
         return f"({self.left!r} ^ {self.right!r})"

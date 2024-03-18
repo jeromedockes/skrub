@@ -42,7 +42,7 @@ TODO
 """
 
 from ._atoms import created_by, filter, filter_names, glob, regex
-from ._base import all, cols, inv, make_selector, name_in, nothing, select
+from ._base import all, cols, inv, make_selector, name_in, select
 from ._dtype_atoms import any_date, boolean, categorical, numeric, string
 from ._statistic_atoms import cardinality_below
 
@@ -50,7 +50,6 @@ __all__ = [
     "select",
     "make_selector",
     "all",
-    "nothing",
     "cols",
     "name_in",
     "inv",
