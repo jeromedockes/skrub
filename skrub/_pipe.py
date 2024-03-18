@@ -11,8 +11,8 @@ from . import selectors as s
 from ._add_estimator_methods import camel_to_snake
 from ._tuning import (
     Choice,
+    NumericChoice,
     Optional,
-    RandomNumber,
     choose,
     choose_float,
     choose_int,
@@ -154,7 +154,7 @@ class Pipe:
     def get_grid_search(self):
         grid = self._get_param_grid()
         if any(
-            isinstance(param, RandomNumber)
+            isinstance(param, NumericChoice)
             for subgrid in grid
             for param in subgrid.values()
         ):

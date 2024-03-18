@@ -81,7 +81,7 @@ class Choice(Sequence, BaseChoice):
 
 
 @fluent_class
-class RandomNumber(BaseChoice):
+class NumericChoice(BaseChoice):
     low_: float
     high_: float
     log_: bool
@@ -127,11 +127,11 @@ def optional(value):
 
 
 def choose_float(low, high, log=False):
-    return RandomNumber(low, high, log=log, to_int=False)
+    return NumericChoice(low, high, log=log, to_int=False)
 
 
 def choose_int(low, high, log=False):
-    return RandomNumber(low, high, log=log, to_int=True)
+    return NumericChoice(low, high, log=log, to_int=True)
 
 
 class Placeholder:
@@ -147,7 +147,7 @@ class Placeholder:
 def unwrap_first(obj):
     if isinstance(obj, Choice):
         return obj.outcomes_[0].value_
-    if isinstance(obj, RandomNumber):
+    if isinstance(obj, NumericChoice):
         return obj.rvs(random_state=0).value_
     if isinstance(obj, Outcome):
         return obj.value_
@@ -279,7 +279,7 @@ def grid_description(grid):
         for k, v in subgrid.items():
             if v.name_ is not None:
                 k = v.name_
-            if isinstance(v, RandomNumber):
+            if isinstance(v, NumericChoice):
                 write_indented(f"{prefix}{k!r}: ", f"{v._get_factory_repr()}\n", buf)
             elif len(v.outcomes_) == 1:
                 write_indented(f"{prefix}{k!r}: ", f"{v.outcomes_[0]}\n", buf)
