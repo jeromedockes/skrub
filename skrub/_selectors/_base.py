@@ -179,7 +179,7 @@ class Cols(Selector):
         return self.columns
 
     def __repr__(self):
-        return repr(self.columns)
+        return f"cols({', '.join(map(repr, self.columns))})"
 
 
 class Inv(Selector):
