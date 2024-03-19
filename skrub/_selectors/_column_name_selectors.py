@@ -2,25 +2,19 @@ import fnmatch
 import re
 
 from .. import _dataframe as sbd
-from ._base import Filter
+from ._base import column_selector
 
 
-def glob(pattern):
-    return Filter(
-        lambda c: fnmatch.fnmatch(sbd.name(c), pattern), name="glob", args=(pattern,)
-    )
+@column_selector
+def glob(column, pattern):
+    return fnmatch.fnmatch(sbd.name(column), pattern)
 
 
-def regex(pattern):
-    compiled = re.compile(pattern)
-    return Filter(
-        lambda c: compiled.match(sbd.name(c)) is not None,
-        name="regex",
-        args=(pattern,),
-    )
+@column_selector
+def regex(column, pattern):
+    return re.match(sbd.name(column), pattern) is not None
 
 
-def filter_names(predicate):
-    return Filter(
-        lambda c: predicate(sbd.name(c)), name="filter_names", args=(predicate,)
-    )
+@column_selector
+def filter_names(column, predicate):
+    return predicate(sbd.name(column))

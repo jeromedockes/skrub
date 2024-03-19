@@ -1,22 +1,27 @@
 from .. import _dataframe as sbd
-from ._base import Filter
+from ._base import column_selector
 
 
-def numeric():
-    return Filter(sbd.is_numeric, name="numeric")
+@column_selector
+def numeric(column):
+    return sbd.is_numeric(column)
 
 
-def any_date():
-    return Filter(sbd.is_any_date, name="any_date")
+@column_selector
+def any_date(column):
+    return sbd.is_any_date(column)
 
 
-def categorical():
-    return Filter(sbd.is_categorical, name="categorical")
+@column_selector
+def categorical(column):
+    return sbd.is_categorical(column)
 
 
-def string():
-    return Filter(sbd.is_string, name="string")
+@column_selector
+def string(column):
+    return sbd.is_string(column)
 
 
-def boolean():
-    return Filter(sbd.is_bool, name="boolean")
+@column_selector
+def boolean(column):
+    return sbd.is_bool(column)

@@ -1,3 +1,5 @@
+import functools
+import inspect
 from typing import Any
 
 from .. import _dataframe as sbd
@@ -264,6 +266,20 @@ class Filter(Selector):
         if self._name is None:
             return f"filter({self.predicate!r})"
         return f"{self._name}({repr_args(self._args, self._kwargs)})"
+
+
+def column_selector(f):
+    @functools.wraps(f)
+    def make_filter(*args, **kwargs):
+        return Filter(
+            lambda c: f(c, *args, **kwargs), name=f.__name__, args=args, kwargs=kwargs
+        )
+
+    sig = inspect.signature(f)
+    make_filter.__signature__ = sig.replace(
+        parameters=list(sig.parameters.values())[1:], return_annotation=Filter
+    )
+    return make_filter
 
 
 def filter(predicate, on_error="raise"):
