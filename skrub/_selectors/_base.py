@@ -241,46 +241,31 @@ class XOr(Selector):
 
 
 class Filter(Selector):
-    def __init__(self, predicate, on_error="raise", name=None, args=None, kwargs=None):
+    def __init__(self, predicate, repr_return_value=None):
         self.predicate = predicate
-        allowed = ["raise", "reject", "accept"]
-        if on_error not in allowed:
-            raise ValueError(f"'on_error' must be one of {allowed}. Got {on_error!r}")
-        self.on_error = on_error
-        self._name = name
-        self._args = () if args is None else args
-        self._kwargs = {} if kwargs is None else kwargs
+        self._repr_return_value = repr_return_value
 
     def matches(self, col):
-        try:
-            return self.predicate(col)
-        except Exception:
-            if self.on_error == "raise":
-                raise
-            if self.on_error == "accept":
-                return True
-            assert self.on_error == "reject"
-            return False
+        return self.predicate(col)
 
     def __repr__(self):
-        if self._name is None:
+        if self._repr_return_value is None:
             return f"filter({self.predicate!r})"
-        return f"{self._name}({repr_args(self._args, self._kwargs)})"
+        return self._repr_return_value
+
+
+def filter(predicate):
+    return Filter(predicate)
 
 
 def column_selector(f):
     @functools.wraps(f)
     def make_filter(*args, **kwargs):
-        return Filter(
-            lambda c: f(c, *args, **kwargs), name=f.__name__, args=args, kwargs=kwargs
-        )
+        repr_ = f"{f.__name__}({repr_args(args, kwargs)})"
+        return Filter(lambda col: f(col, *args, **kwargs), repr_return_value=repr_)
 
     sig = inspect.signature(f)
     make_filter.__signature__ = sig.replace(
-        parameters=list(sig.parameters.values())[1:], return_annotation=Filter
+        parameters=list(sig.parameters.values())[1:], return_annotation=Selector
     )
     return make_filter
-
-
-def filter(predicate, on_error="raise"):
-    return Filter(predicate, on_error=on_error)
