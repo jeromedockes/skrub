@@ -1,8 +1,9 @@
 import fnmatch
+import functools
 import re
 
 from .. import _dataframe as sbd
-from ._base import column_selector
+from ._base import column_selector, Filter
 
 __all__ = [
     "glob",
@@ -21,9 +22,11 @@ __all__ = [
 #
 
 
-@column_selector
-def glob(column, pattern):
+def _glob(column, pattern):
     return fnmatch.fnmatch(sbd.name(column), pattern)
+
+def glob(pattern):
+    return Filter(_glob, args=(pattern,), name="glob")
 
 
 @column_selector
@@ -41,9 +44,9 @@ def filter_names(column, predicate):
 #
 
 
-@column_selector
-def numeric(column):
-    return sbd.is_numeric(column)
+@functools.lru_cache
+def numeric():
+    return Filter(sbd.is_numeric, name="numeric")
 
 
 @column_selector

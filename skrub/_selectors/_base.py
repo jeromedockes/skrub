@@ -1,5 +1,6 @@
 import functools
 import inspect
+import sys
 from typing import Any
 
 from .. import _dataframe as sbd
@@ -241,17 +242,19 @@ class XOr(Selector):
 
 
 class Filter(Selector):
-    def __init__(self, predicate, repr_return_value=None):
+    def __init__(self, predicate, args=None, kwargs=None, name=None):
         self.predicate = predicate
-        self._repr_return_value = repr_return_value
+        self.args = () if args is None else args
+        self.kwargs = {} if kwargs is None else kwargs
+        self.name = name
 
     def matches(self, col):
-        return self.predicate(col)
+        return self.predicate(col, *self.args, **self.kwargs)
 
     def __repr__(self):
-        if self._repr_return_value is None:
+        if self.name is None:
             return f"filter({self.predicate!r})"
-        return self._repr_return_value
+        return f"{self.name}({repr_args(self.args, self.kwargs)})"
 
 
 def filter(predicate):
@@ -259,13 +262,4 @@ def filter(predicate):
 
 
 def column_selector(f):
-    @functools.wraps(f)
-    def make_filter(*args, **kwargs):
-        repr_ = f"{f.__name__}({repr_args(args, kwargs)})"
-        return Filter(lambda col: f(col, *args, **kwargs), repr_return_value=repr_)
-
-    sig = inspect.signature(f)
-    make_filter.__signature__ = sig.replace(
-        parameters=list(sig.parameters.values())[1:], return_annotation=Selector
-    )
-    return make_filter
+    return f
