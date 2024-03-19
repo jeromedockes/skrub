@@ -3,7 +3,7 @@ import functools
 import re
 
 from .. import _dataframe as sbd
-from ._base import column_selector, Filter
+from ._base import Filter, column_selector
 
 __all__ = [
     "glob",
@@ -24,6 +24,7 @@ __all__ = [
 
 def _glob(column, pattern):
     return fnmatch.fnmatch(sbd.name(column), pattern)
+
 
 def glob(pattern):
     return Filter(_glob, args=(pattern,), name="glob")
