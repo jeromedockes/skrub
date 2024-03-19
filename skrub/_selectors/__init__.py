@@ -41,27 +41,17 @@ TODO
 1   3
 """
 
+from . import _column_selectors
 from ._base import Selector, all, cols, filter, inv, make_selector, select
-from ._column_name_selectors import filter_names, glob, regex
-from ._dtype_selectors import any_date, boolean, categorical, numeric, string
-from ._statistic_selectors import cardinality_below
+from ._column_selectors import *  # noqa: F403,F401
 
 __all__ = [
-    "select",
     "Selector",
-    "make_selector",
     "all",
     "cols",
-    "name_in",
-    "inv",
-    "glob",
-    "regex",
     "filter",
-    "filter_names",
-    "numeric",
-    "any_date",
-    "categorical",
-    "string",
-    "boolean",
-    "cardinality_below",
+    "inv",
+    "make_selector",
+    "select",
 ]
+__all__ += _column_selectors.__all__
