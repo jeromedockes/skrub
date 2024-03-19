@@ -2,61 +2,21 @@ from .. import _dataframe as sbd
 from ._base import Filter
 
 
-class Numeric(Filter):
-    def __init__(self):
-        super().__init__(sbd.is_numeric)
-
-    def __repr__(self):
-        return "numeric()"
-
-
 def numeric():
-    return Numeric()
-
-
-class AnyDate(Filter):
-    def __init__(self):
-        super().__init__(sbd.is_any_date)
-
-    def __repr__(self):
-        return "any_date()"
+    return Filter(sbd.is_numeric, name="numeric")
 
 
 def any_date():
-    return AnyDate()
-
-
-class Categorical(Filter):
-    def __init__(self):
-        super().__init__(sbd.is_categorical)
-
-    def __repr__(self):
-        return "categorical()"
+    return Filter(sbd.is_any_date, name="any_date")
 
 
 def categorical():
-    return Categorical()
-
-
-class String(Filter):
-    def __init__(self):
-        super().__init__(sbd.is_string)
-
-    def __repr__(self):
-        return "string()"
+    return Filter(sbd.is_categorical, name="categorical")
 
 
 def string():
-    return String()
-
-
-class Boolean(Filter):
-    def __init__(self):
-        super().__init__(sbd.is_bool)
-
-    def __repr__(self):
-        return "boolean()"
+    return Filter(sbd.is_string, name="string")
 
 
 def boolean():
-    return Boolean()
+    return Filter(sbd.is_bool, name="boolean")

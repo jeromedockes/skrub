@@ -4,6 +4,7 @@ from .. import _dataframe as sbd
 from .._add_estimator_methods import add_estimator_methods
 from .._dispatch import dispatch
 from .._fluent_classes import fluent_class
+from .._utils import repr_args
 
 
 def all():
@@ -238,12 +239,15 @@ class XOr(Selector):
 
 
 class Filter(Selector):
-    def __init__(self, predicate, on_error="raise"):
+    def __init__(self, predicate, on_error="raise", name=None, args=None, kwargs=None):
         self.predicate = predicate
         allowed = ["raise", "reject", "accept"]
         if on_error not in allowed:
             raise ValueError(f"'on_error' must be one of {allowed}. Got {on_error!r}")
         self.on_error = on_error
+        self._name = name
+        self._args = () if args is None else args
+        self._kwargs = {} if kwargs is None else kwargs
 
     def matches(self, col):
         try:
@@ -257,7 +261,9 @@ class Filter(Selector):
             return False
 
     def __repr__(self):
-        return f"filter({self.predicate!r})"
+        if self._name is None:
+            return f"filter({self.predicate!r})"
+        return f"{self._name}({repr_args(self._args, self._kwargs)})"
 
 
 def filter(predicate, on_error="raise"):
