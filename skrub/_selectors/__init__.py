@@ -41,10 +41,10 @@ TODO
 1   3
 """
 
-from ._atoms import filter, filter_names, glob, regex
-from ._base import Selector, all, cols, inv, make_selector, name_in, select
-from ._dtype_atoms import any_date, boolean, categorical, numeric, string
-from ._statistic_atoms import cardinality_below
+from ._base import Selector, all, cols, filter, inv, make_selector, select
+from ._column_name_selectors import filter_names, glob, regex
+from ._dtype_selectors import any_date, boolean, categorical, numeric, string
+from ._statistic_selectors import cardinality_below
 
 __all__ = [
     "select",

@@ -14,10 +14,6 @@ def cols(*columns):
     return Cols(columns)
 
 
-def name_in(*columns):
-    return Cols(columns)
-
-
 def inv(obj):
     return ~make_selector(obj)
 
@@ -239,3 +235,30 @@ class XOr(Selector):
 
     def __repr__(self):
         return f"({self.left!r} ^ {self.right!r})"
+
+
+class Filter(Selector):
+    def __init__(self, predicate, on_error="raise"):
+        self.predicate = predicate
+        allowed = ["raise", "reject", "accept"]
+        if on_error not in allowed:
+            raise ValueError(f"'on_error' must be one of {allowed}. Got {on_error!r}")
+        self.on_error = on_error
+
+    def matches(self, col):
+        try:
+            return self.predicate(col)
+        except Exception:
+            if self.on_error == "raise":
+                raise
+            if self.on_error == "accept":
+                return True
+            assert self.on_error == "reject"
+            return False
+
+    def __repr__(self):
+        return f"filter({self.predicate!r})"
+
+
+def filter(predicate, on_error="raise"):
+    return Filter(predicate, on_error=on_error)
