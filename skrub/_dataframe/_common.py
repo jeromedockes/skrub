@@ -2,7 +2,7 @@ from collections.abc import Mapping
 
 import pandas as pd
 import pandas.api.types
-from sklearn.utils import parse_version
+from sklearn.utils.fixes import parse_version
 
 try:
     import polars as pl
