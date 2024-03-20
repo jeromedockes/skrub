@@ -64,9 +64,9 @@ def test_cols_from_name(df_module):
 
 def test_filter(df_module):
     df = df_module.example_dataframe
-    expanded = s.filter(lambda c: 4.5 in sbd.to_numpy(c)).expand(df)
+    expanded = s.filter(lambda c: 4.5 in sbd.to_list(c)).expand(df)
     assert expanded == ["float-col"]
-    expanded = s.filter(lambda c, v: v in sbd.to_numpy(c), args=(4.5,)).expand(df)
+    expanded = s.filter(lambda c, v: v in sbd.to_list(c), args=(4.5,)).expand(df)
     assert expanded == ["float-col"]
 
 

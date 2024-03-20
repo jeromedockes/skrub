@@ -74,7 +74,7 @@ def _make_table_vectorizer_pipeline(
         (cols & low_cardinality).make_transformer(
             low_cardinality_transformer, n_jobs=n_jobs, columnwise=True
         ),
-        (cols & s.string()).make_transformer(
+        (cols & (s.string() | s.categorical())).make_transformer(
             high_cardinality_transformer, n_jobs=n_jobs, columnwise=True
         ),
     ]

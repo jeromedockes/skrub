@@ -1,3 +1,4 @@
+from skrub import _dataframe as sbd
 from skrub import _selectors as s
 
 
@@ -36,9 +37,13 @@ def test_regex(df_module):
 
 def test_dtype_selectors(df_module):
     df = df_module.example_dataframe
-    assert s.numeric().expand(df) == ["int-col", "float-col", "bool-col"]
-    assert (s.numeric() - s.boolean()).expand(df) == [
+    cat_col = sbd.rename(sbd.to_categorical(sbd.col(df, "str-col")), "cat-col")
+    df = sbd.make_dataframe_like(df, sbd.to_column_list(df) + [cat_col])
+    assert s.numeric().expand(df) == ["int-col", "float-col"]
+    assert (s.numeric() | s.boolean()).expand(df) == [
         "int-col",
         "float-col",
         "bool-col",
     ]
+    assert s.string().expand(df) == ["str-col"]
+    assert s.categorical().expand(df) == ["cat-col"]

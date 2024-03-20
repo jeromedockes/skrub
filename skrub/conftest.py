@@ -44,7 +44,7 @@ _DATAFAME_MODULES_INFO["pandas"] = SimpleNamespace(
         "example_dataframe": pd.DataFrame(_example_data_dict()).convert_dtypes(),
         "example_column": pd.Series(
             _example_data_dict()["float-col"], name="float-col"
-        ),
+        ).convert_dtypes(),
         "dtypes": {
             "float32": pd.Float32Dtype(),
             "float64": pd.Float64Dtype(),
