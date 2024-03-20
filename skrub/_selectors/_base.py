@@ -1,6 +1,3 @@
-import functools
-import inspect
-import sys
 from typing import Any
 
 from .. import _dataframe as sbd
@@ -251,15 +248,29 @@ class Filter(Selector):
     def matches(self, col):
         return self.predicate(col, *self.args, **self.kwargs)
 
+    @staticmethod
+    def _default_name():
+        return "filter"
+
     def __repr__(self):
         if self.name is None:
-            return f"filter({self.predicate!r})"
+            args_r = repr_args((self.predicate,) + self.args, self.kwargs)
+            return f"{self._default_name()}({args_r})"
         return f"{self.name}({repr_args(self.args, self.kwargs)})"
 
 
-def filter(predicate):
-    return Filter(predicate)
+def filter(predicate, args=None, kwargs=None):
+    return Filter(predicate, args=args, kwargs=kwargs)
 
 
-def column_selector(f):
-    return f
+class NameFilter(Filter):
+    def matches(self, col):
+        return self.predicate(sbd.name(col), *self.args, **self.kwargs)
+
+    @staticmethod
+    def _default_name():
+        return "filter_names"
+
+
+def filter_names(predicate, args=None, kwargs=None):
+    return NameFilter(predicate, args=args, kwargs=kwargs)

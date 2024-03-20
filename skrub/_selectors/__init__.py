@@ -41,17 +41,18 @@ TODO
 1   3
 """
 
-from . import _column_selectors
-from ._base import Selector, all, cols, filter, inv, make_selector, select
-from ._column_selectors import *  # noqa: F403,F401
+from . import _selectors
+from ._base import Selector, all, cols, filter, filter_names, inv, make_selector, select
+from ._selectors import *  # noqa: F403,F401
 
 __all__ = [
     "Selector",
     "all",
     "cols",
     "filter",
+    "filter_names",
     "inv",
     "make_selector",
     "select",
 ]
-__all__ += _column_selectors.__all__
+__all__ += _selectors.__all__
