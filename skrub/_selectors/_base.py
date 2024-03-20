@@ -25,7 +25,7 @@ def make_selector(obj):
     if isinstance(obj, str):
         return cols(obj)
     if not hasattr(obj, "__iter__"):
-        raise ValueError(f"selector not understood: {obj}")
+        raise ValueError(f"Selector not understood: {obj}")
     return cols(*obj)
 
 

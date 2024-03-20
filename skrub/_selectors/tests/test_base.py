@@ -11,10 +11,22 @@ def test_repr():
     all()
     >>> s.all() - ["ID", "Name"]
     (all() - cols('ID', 'Name'))
+    >>> s.cols("ID", "Name") & "ID"
+    (cols('ID', 'Name') & cols('ID'))
     >>> s.filter_names(lambda n: 'a' in n) ^ s.filter(lambda c: c[2] == 3)
     (filter_names(<function <lambda> at ...>) ^ filter(<function <lambda> at ...>))
+    >>> ~s.all()
+    (~all())
 
     """
+
+
+def test_make_selector():
+    assert s.make_selector(sel := s.all()) is sel
+    assert s.make_selector(cols := ["a", "one two"]).columns == cols
+    assert s.make_selector(col := "one two").columns == [col]
+    with pytest.raises(ValueError, match="Selector not understood"):
+        s.make_selector(0)
 
 
 def test_all(df_module):
@@ -36,6 +48,8 @@ def test_cols(df_module):
     assert expanded == []
     expanded = s.cols().expand(df_module.empty_dataframe)
     assert expanded == []
+    with pytest.raises(ValueError, match=".*Found non-string.*"):
+        s.cols(2, "2")
 
 
 def test_missing_cols_error(df_module):
@@ -90,6 +104,7 @@ def test_inv(df_module):
 def test_or(df_module):
     df = df_module.example_dataframe
     assert (~s.all() | "int-col" | "float-col").expand(df) == ["int-col", "float-col"]
+    assert (("abc" | s.all()) & "int-col").expand(df) == ["int-col"]
 
 
 def test_and(df_module):
@@ -105,9 +120,12 @@ def test_sub(df_module):
 
 def test_xor(df_module):
     df = df_module.example_dataframe
-    assert (
-        s.cols("int-col", "float-col", "xx") ^ s.cols("int-col", "date-col")
-    ).expand(df) == ["float-col", "date-col"]
+    assert (("int-col", "float-col", "xx") ^ s.cols("int-col", "date-col")).expand(
+        df
+    ) == ["float-col", "date-col"]
+    assert (s.cols("int-col", "float-col", "xx") ^ ("int-col", "date-col")).expand(
+        df
+    ) == ["float-col", "date-col"]
 
 
 def test_short_circuit(df_module):

@@ -47,3 +47,16 @@ def test_dtype_selectors(df_module):
     ]
     assert s.string().expand(df) == ["str-col"]
     assert s.categorical().expand(df) == ["cat-col"]
+
+
+def test_cardinality_below(df_module, monkeypatch):
+    df = df_module.example_dataframe
+    assert s.cardinality_below(3).expand(df) == ["bool-col"]
+    assert s.cardinality_below(4).expand(df) == (s.all() - "date-col").expand(df)
+    assert s.cardinality_below(5).expand(df) == s.all().expand(df)
+
+    def bad_n_unique(c):
+        raise ValueError()
+
+    monkeypatch.setattr(sbd, "n_unique", bad_n_unique)
+    assert s.cardinality_below(5).expand(df) == []
