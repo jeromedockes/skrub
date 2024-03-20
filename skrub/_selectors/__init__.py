@@ -96,6 +96,22 @@ cols('ID')
 >>> s.make_selector(["ID", "kind"])
 cols('ID', 'kind')
 
+The cols selector, when used by itself, raises if some of the columns are
+missing from the dataframe.
+
+>>> s.cols("ID", "missing").expand(df)
+Traceback (most recent call last):
+...
+ValueError: The following columns are requested for selection but missing from dataframe: ['missing']
+
+However, that is no longer the case as soon as it is combined with other selectors.
+Indeed, when combining the cols selector with other selectors, we are no longer
+performing a simple indexing of the dataframe with a list of columns that we
+know exist.
+
+>>> (s.all() & s.cols("ID", "missing")).expand(df)
+['ID']
+
 In practice, the expand method of selectors will rarely be called directly by
 client code. Rather, users would create selectors and pass them instead of a
 column list to skrub objects that operate on a subset of columns. This could
