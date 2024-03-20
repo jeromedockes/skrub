@@ -24,8 +24,12 @@ def glob(pattern):
     return NameFilter(fnmatch.fnmatch, args=(pattern,), name="glob")
 
 
+def _regex(col_name, pattern):
+    return re.match(pattern, col_name) is not None
+
+
 def regex(pattern):
-    return NameFilter(re.match, args=(pattern,), name="regex")
+    return NameFilter(_regex, args=(pattern,), name="regex")
 
 
 #

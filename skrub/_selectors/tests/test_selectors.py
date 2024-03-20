@@ -1,3 +1,6 @@
+from skrub import _selectors as s
+
+
 def test_repr():
     """
     >>> from skrub import _selectors as s
@@ -11,3 +14,31 @@ def test_repr():
     ((string() | any_date()) | categorical())
 
     """
+
+
+def test_glob(df_module):
+    df = df_module.example_dataframe
+    assert s.glob("*").expand(df) == s.all().expand(df)
+    assert s.glob("xxx").expand(df) == []
+    assert (s.glob("[Ii]nt-*") | s.glob("?loat-col")).expand(df) == [
+        "int-col",
+        "float-col",
+    ]
+
+
+def test_regex(df_module):
+    df = df_module.example_dataframe
+    assert (s.regex("int-.*") | s.regex("float-") | s.regex("date-$")).expand(df) == [
+        "int-col",
+        "float-col",
+    ]
+
+
+def test_dtype_selectors(df_module):
+    df = df_module.example_dataframe
+    assert s.numeric().expand(df) == ["int-col", "float-col", "bool-col"]
+    assert (s.numeric() - s.boolean()).expand(df) == [
+        "int-col",
+        "float-col",
+        "bool-col",
+    ]
