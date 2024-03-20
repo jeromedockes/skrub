@@ -1,4 +1,6 @@
-"""Helpers for selecting columns in a dataframe.
+"""
+Helpers for selecting columns in a dataframe.
+=============================================
 
 A selector represents a column selection rule, such as "all columns that have
 numerical data types, except the column 'User ID'. When applied to a dataframe,
@@ -10,11 +12,11 @@ The 2 advantages offered by selectors are:
 - Expressing complex selection rules in a simple and concise way, because they
   can be combined with operators and a range of useful selectors is provided by
   this module.
-- Passing a selection rule, to be evaluated later on a dataframe that is not
-  yet available. For example, without selectors (ie ATM) it is not possible to
-  instantiate a skrub.SelectCols that selects "all columns that have numerical
-  data types, except the column 'User ID'", if the data on which it will be
-  fitted is not yet available.
+- Delayed selection: passing a selection rule, to be evaluated later on a
+  dataframe that is not yet available. For example, without selectors (ie ATM)
+  it is not possible to instantiate a skrub.SelectCols that selects "all
+  columns that have numerical data types, except the column 'User ID'", if the
+  data on which it will be fitted is not yet available.
 
 Here is an example dataframe:
 
@@ -38,7 +40,8 @@ cols('height_mm', 'width_mm')
 >>> mm_cols.expand(df)
 ['height_mm', 'width_mm']
 
-Another simple selectors selects all columns:
+Another simple selector, especially useful for default arguments, keeps all
+columns:
 
 >>> s.all().expand(df)
 ['height_mm', 'width_mm', 'kind', 'ID']
@@ -63,7 +66,7 @@ See the full list:
 ['all', 'any_date', 'boolean', 'cardinality_below', 'categorical', 'cols', 'filter', 'filter_names', 'glob', 'inv', 'numeric', 'regex', 'string']
 
 The available operators are |, &, -, ^ with the usual meaning (the same meaning
-they would on python sets of the selected columns), and ~ to invert a
+they would on python sets of the selected column names), and ~ to invert a
 selection.
 
 >>> s.glob('*_mm').expand(df)
@@ -76,6 +79,17 @@ selection.
 ['height_mm']
 >>> (s.glob('*_mm') ^ s.string()).expand(df)
 ['height_mm', 'width_mm', 'kind']
+
+The operators respect the usual short-circuit rules so for example the
+following selector:
+
+>>> s.categorical() & s.cardinality_below(10)
+(categorical() & cardinality_below(10))
+
+Will not compute the cardinality of non-categorical columns.
+
+Selecting columns by name
+-------------------------
 
 A column name or sequence of column names is converted to a `cols` selector
 when combined with other selectors in an expression.
@@ -112,6 +126,9 @@ know exist.
 >>> (s.all() & s.cols("ID", "missing")).expand(df)
 ['ID']
 
+Selectors in skrub interfaces
+-----------------------------
+
 In practice, the expand method of selectors will rarely be called directly by
 client code. Rather, users would create selectors and pass them instead of a
 column list to skrub objects that operate on a subset of columns. This could
@@ -130,7 +147,8 @@ the select function provided in this module.
 0      297.0     210.0
 1      420.0     297.0
 
-Advanced selectors:
+Advanced selectors: filter and filter_names
+-------------------------------------------
 
 filter and filter_names allow selecting columns based on arbitrary user-defined
 criteria. These are also used to implement many of the other selectors provided
@@ -152,6 +170,65 @@ We can pass args and kwargs that will be passed to the predicate, which can
 help avoid lambda or local functions and thus ensure the selector is picklable.
 
 >>> s.filter_names(str.endswith, args=('mm',)).expand(df)
+['height_mm', 'width_mm']
+
+Defining new selectors
+----------------------
+
+This last advanced section is aimed at skrub developers adding new selectors to
+this module.
+
+A Selector subclass must define the `_matches` method. It accepts a column and
+returns True if the column should be selected.
+
+Additionally, the subclass can override the `expand` method. It accepts a
+dataframe and returns the list of column names that should be selected. This is
+only called when the selector is used by itself. Whenever it is combined with
+other selectors with operators, `_matches` is used. Overriding `expand` thus
+allows special-casing the behavior when it is used on its own, such as raising
+an exception when a simple list of column names is used for selection and some
+are missing from the dataframe. Overriding `expand` is not necessary in most
+cases; it may actually never be necessary except for the cols special case.
+
+A simpler alternative to defining a new Selector subclass is to define a
+function that constructs a selector by calling filter or filter_names with an
+appropriate predicate and arguments; most selectors offered by this module are
+implemented with this approach.
+
+>>> from skrub import _dataframe as sbd
+
+Defining a new class:
+
+>>> class EndsWithMm(s.Selector):
+...     def _matches(self, col):
+...         return sbd.name(col).endswith("_mm")
+
+>>> EndsWithMm().expand(df)
+['height_mm', 'width_mm']
+
+Using a filter:
+
+>>> def ends_with_mm():
+...     return s.filter_names(str.endswith, args=("_mm",))
+
+>>> ends_with_mm().expand(df)
+['height_mm', 'width_mm']
+
+>>> ends_with_mm()
+filter_names(<method 'endswith' of 'str' objects>, '_mm')
+
+Instantiating directly a Filter or FilterNames object allows passing the name
+argument and thus controlling the repr of the resulting selector, so an
+improved version would be:
+
+>>> from skrub._selectors._base import NameFilter
+
+>>> def ends_with_mm():
+...     return NameFilter(str.endswith, args=('_mm',), name='ends_with_mm')
+
+>>> ends_with_mm()
+ends_with_mm('_mm')
+>>> ends_with_mm().expand(df)
 ['height_mm', 'width_mm']
 
 """
