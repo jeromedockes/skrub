@@ -33,7 +33,7 @@ class _CreatedBy(s.Selector):
     def __init__(self, *transformers):
         self.transformers = transformers
 
-    def matches(self, col):
+    def _matches(self, col):
         col_name = sbd.name(col)
         for step in self.transformers:
             if hasattr(step, "created_outputs_"):

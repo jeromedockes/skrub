@@ -50,14 +50,14 @@ def select(df, selector):
 
 @add_estimator_methods
 class Selector:
-    def matches(self, col):
+    def _matches(self, col):
         raise NotImplementedError()
 
     def expand(self, df):
         matching_col_names = []
         for col_name in sbd.column_names(df):
             col = sbd.col(df, col_name)
-            if self.matches(col):
+            if self._matches(col):
                 matching_col_names.append(col_name)
         return matching_col_names
 
@@ -141,7 +141,7 @@ class PipeStep:
 
 
 class All(Selector):
-    def matches(self, col):
+    def _matches(self, col):
         return True
 
     def __repr__(self):
@@ -163,7 +163,7 @@ class Cols(Selector):
     def __init__(self, columns):
         self.columns = _check_string_list(columns)
 
-    def matches(self, col):
+    def _matches(self, col):
         return sbd.name(col) in self.columns
 
     def expand(self, df):
@@ -183,8 +183,8 @@ class Inv(Selector):
     def __init__(self, complement):
         self.complement = make_selector(complement)
 
-    def matches(self, col):
-        return not self.complement.matches(col)
+    def _matches(self, col):
+        return not self.complement._matches(col)
 
     def __repr__(self):
         return f"(~{self.complement!r})"
@@ -195,8 +195,8 @@ class Or(Selector):
         self.left = make_selector(left)
         self.right = make_selector(right)
 
-    def matches(self, col):
-        return self.left.matches(col) or self.right.matches(col)
+    def _matches(self, col):
+        return self.left._matches(col) or self.right._matches(col)
 
     def __repr__(self):
         return f"({self.left!r} | {self.right!r})"
@@ -207,8 +207,8 @@ class And(Selector):
         self.left = make_selector(left)
         self.right = make_selector(right)
 
-    def matches(self, col):
-        return self.left.matches(col) and self.right.matches(col)
+    def _matches(self, col):
+        return self.left._matches(col) and self.right._matches(col)
 
     def __repr__(self):
         return f"({self.left!r} & {self.right!r})"
@@ -219,8 +219,8 @@ class Sub(Selector):
         self.left = make_selector(left)
         self.right = make_selector(right)
 
-    def matches(self, col):
-        return self.left.matches(col) and (not self.right.matches(col))
+    def _matches(self, col):
+        return self.left._matches(col) and (not self.right._matches(col))
 
     def __repr__(self):
         return f"({self.left!r} - {self.right!r})"
@@ -231,8 +231,8 @@ class XOr(Selector):
         self.left = make_selector(left)
         self.right = make_selector(right)
 
-    def matches(self, col):
-        return self.left.matches(col) ^ self.right.matches(col)
+    def _matches(self, col):
+        return self.left._matches(col) ^ self.right._matches(col)
 
     def __repr__(self):
         return f"({self.left!r} ^ {self.right!r})"
@@ -245,7 +245,7 @@ class Filter(Selector):
         self.kwargs = {} if kwargs is None else kwargs
         self.name = name
 
-    def matches(self, col):
+    def _matches(self, col):
         return self.predicate(col, *self.args, **self.kwargs)
 
     @staticmethod
@@ -264,7 +264,7 @@ def filter(predicate, args=None, kwargs=None):
 
 
 class NameFilter(Filter):
-    def matches(self, col):
+    def _matches(self, col):
         return self.predicate(sbd.name(col), *self.args, **self.kwargs)
 
     @staticmethod
