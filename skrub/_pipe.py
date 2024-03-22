@@ -9,6 +9,7 @@ from sklearn.pipeline import Pipeline
 from . import _dataframe as sbd
 from . import selectors as s
 from ._add_estimator_methods import camel_to_snake
+from ._parallel_plot import plot_parallel_coord
 from ._tuning import (
     Choice,
     NumericChoice,
@@ -97,7 +98,12 @@ def _to_estimator(step, n_jobs):
 
 class Pipe:
     def __init__(
-        self, input_data=None, n_jobs=None, preview_sample_size=200, random_seed=0
+        self,
+        input_data=None,
+        n_jobs=None,
+        memory=None,
+        preview_sample_size=200,
+        random_seed=0,
     ):
         self.input_data = input_data
         if input_data is None:
@@ -105,6 +111,7 @@ class Pipe:
         else:
             self.input_data_shape = sbd.shape(input_data)
         self.n_jobs = n_jobs
+        self.memory = memory
         self.preview_sample_size = preview_sample_size
         self.random_seed = random_seed
         self._steps = []
@@ -113,6 +120,7 @@ class Pipe:
         new = Pipe(
             input_data=self.input_data,
             n_jobs=self.n_jobs,
+            memory=self.memory,
             preview_sample_size=self.preview_sample_size,
             random_seed=self.random_seed,
         )
@@ -149,7 +157,7 @@ class Pipe:
         steps = list(zip(self._get_step_names(), self._get_default_estimators()))
         if not with_predictor and self._has_predictor():
             steps = steps[:-1]
-        return clone(NamedParamPipeline(steps))
+        return clone(NamedParamPipeline(steps, memory=self.memory))
 
     def get_grid_search(self, **gs_params):
         # TODO make gs_params explicit
@@ -276,16 +284,16 @@ class Pipe:
                 out.write("      " + line)
         return out.getvalue()
 
-    def get_cv_results_table(self, fitted_gs, with_metadata=False):
+    def get_cv_results_table(self, fitted_search, return_metadata=False):
         import pandas as pd
 
-        all_params = fitted_gs.cv_results_["params"]
-        mean_test_scores = fitted_gs.cv_results_["mean_test_score"]
-        std_test_scores = fitted_gs.cv_results_["std_test_score"]
-        mean_fit_time = fitted_gs.cv_results_["mean_fit_time"]
+        all_params = fitted_search.cv_results_["params"]
+        mean_test_scores = fitted_search.cv_results_["mean_test_score"]
+        std_test_scores = fitted_search.cv_results_["std_test_score"]
+        mean_fit_time = fitted_search.cv_results_["mean_fit_time"]
         all_rows = []
         param_names = set()
-        metadata = {}
+        log_scale_columns = set()
         for score, std, time, params in zip(
             mean_test_scores, std_test_scores, mean_fit_time, all_params
         ):
@@ -295,20 +303,24 @@ class Pipe:
                 value = param.name_ or param.value_
                 row[choice_name] = value
                 param_names.add(choice_name)
-                md = metadata.get(choice_name, {})
                 if getattr(param, "is_from_log_scale_", False):
-                    md["log_scale"] = True
-                else:
-                    md.setdefault("log_scale", False)
-                metadata[choice_name] = md
+                    log_scale_columns.add(choice_name)
             all_rows.append(row)
+
+        metadata = {"log_scale_columns": list(log_scale_columns)}
         all_ordered_param_names = _get_all_param_names(self._get_param_grid())
         ordered_param_names = [n for n in all_ordered_param_names if n in param_names]
         cols = ["mean_score"] + ordered_param_names + ["fit_time", "std_score"]
         table = pd.DataFrame(all_rows, columns=cols).sort_values(
             "mean_score", ascending=False, ignore_index=True
         )
-        return table, metadata if with_metadata else table
+        return (table, metadata) if return_metadata else table
+
+    def plot_parallel_coord(self, fitted_search):
+        cv_results, metadata = self.get_cv_results_table(
+            fitted_search, return_metadata=True
+        )
+        return plot_parallel_coord(cv_results, metadata)
 
     def __repr__(self):
         n_steps = len(self._steps)
