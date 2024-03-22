@@ -64,20 +64,18 @@ def _make_table_vectorizer_pipeline(
         cols.make_transformer(ToCategorical(cardinality_threshold - 1), n_jobs=n_jobs),
     ]
     low_cardinality = s.categorical() & s.cardinality_below(cardinality_threshold)
-    feature_extraction_steps = [
-        (cols & s.numeric()).make_transformer(
-            numeric_transformer, n_jobs=n_jobs, columnwise=True
-        ),
-        (cols & s.any_date()).make_transformer(
-            datetime_transformer, n_jobs=n_jobs, columnwise=True
-        ),
-        (cols & low_cardinality).make_transformer(
-            low_cardinality_transformer, n_jobs=n_jobs, columnwise=True
-        ),
-        (cols & (s.string() | s.categorical())).make_transformer(
-            high_cardinality_transformer, n_jobs=n_jobs, columnwise=True
-        ),
-    ]
+    feature_extraction_steps = []
+    for selector, transformer in [
+        (cols & s.numeric(), numeric_transformer),
+        (cols & s.any_date(), datetime_transformer),
+        (cols & low_cardinality, low_cardinality_transformer),
+        (cols & (s.string() | s.categorical()), high_cardinality_transformer),
+    ]:
+        feature_extraction_steps.append(
+            (selector - _CreatedBy(*feature_extraction_steps)).make_transformer(
+                transformer, n_jobs=n_jobs, columnwise=True
+            )
+        )
     remainder = cols - _CreatedBy(*feature_extraction_steps)
     remainder_steps = [
         remainder.make_transformer(
