@@ -151,7 +151,8 @@ class Pipe:
             steps = steps[:-1]
         return clone(NamedParamPipeline(steps))
 
-    def get_grid_search(self):
+    def get_grid_search(self, **gs_params):
+        # TODO make gs_params explicit
         grid = self._get_param_grid()
         if any(
             isinstance(param, NumericChoice)
@@ -162,13 +163,12 @@ class Pipe:
                 "Cannot get grid search if some of the choices are random. "
                 "Use get_randomized_search() instead."
             )
-        return GridSearchCV(self.get_pipeline(), grid)
+        return GridSearchCV(self.get_pipeline(), grid, **gs_params)
 
-    def get_randomized_search(self, n_iter=10, random_state=None):
+    def get_randomized_search(self, **rs_params):
+        # TODO make rs_params explicit
         grid = self._get_param_grid()
-        return RandomizedSearchCV(
-            self.get_pipeline(), grid, n_iter=n_iter, random_state=random_state
-        )
+        return RandomizedSearchCV(self.get_pipeline(), grid, **rs_params)
 
     def chain(self, *steps):
         if self._has_predictor():
@@ -276,7 +276,7 @@ class Pipe:
                 out.write("      " + line)
         return out.getvalue()
 
-    def get_cv_results_table(self, fitted_gs):
+    def get_cv_results_table(self, fitted_gs, with_metadata=False):
         import pandas as pd
 
         all_params = fitted_gs.cv_results_["params"]
@@ -285,6 +285,7 @@ class Pipe:
         mean_fit_time = fitted_gs.cv_results_["mean_fit_time"]
         all_rows = []
         param_names = set()
+        metadata = {}
         for score, std, time, params in zip(
             mean_test_scores, std_test_scores, mean_fit_time, all_params
         ):
@@ -294,13 +295,20 @@ class Pipe:
                 value = param.name_ or param.value_
                 row[choice_name] = value
                 param_names.add(choice_name)
+                md = metadata.get(choice_name, {})
+                if getattr(param, "is_from_log_scale_", False):
+                    md["log_scale"] = True
+                else:
+                    md.setdefault("log_scale", False)
+                metadata[choice_name] = md
             all_rows.append(row)
         all_ordered_param_names = _get_all_param_names(self._get_param_grid())
         ordered_param_names = [n for n in all_ordered_param_names if n in param_names]
         cols = ["mean_score"] + ordered_param_names + ["fit_time", "std_score"]
-        return pd.DataFrame(all_rows, columns=cols).sort_values(
+        table = pd.DataFrame(all_rows, columns=cols).sort_values(
             "mean_score", ascending=False, ignore_index=True
         )
+        return table, metadata if with_metadata else table
 
     def __repr__(self):
         n_steps = len(self._steps)

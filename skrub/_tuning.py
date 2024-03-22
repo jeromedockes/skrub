@@ -92,6 +92,14 @@ def _check_bounds(low, high, log):
 
 
 @fluent_class
+class NumericOutcome(Outcome):
+    value_: int | float
+    is_from_log_scale_: bool
+    name_: str | None = None
+    in_choice_: str | None = None
+
+
+@fluent_class
 class NumericChoice(BaseChoice):
     low_: float
     high_: float
@@ -110,7 +118,7 @@ class NumericChoice(BaseChoice):
         value = self._distrib.rvs(size=size, random_state=random_state)
         if self.to_int_:
             value = value.astype(int)
-        return Outcome(value, in_choice=self.name_)
+        return NumericOutcome(value, self.log_, in_choice=self.name_)
 
     def _get_factory_repr(self):
         parts = [repr(self.low_), repr(self.high_)]
@@ -146,7 +154,7 @@ class DiscretizedNumericChoice(NumericChoice):
     def rvs(self, size=None, random_state=None):
         random_state = check_random_state(random_state)
         value = random_state.choice(self.grid, size=size)
-        return Outcome(value, in_choice=self.name_)
+        return NumericOutcome(value, self.log_, in_choice=self.name_)
 
     def _get_factory_repr(self):
         parts = [repr(self.low_), repr(self.high_)]
