@@ -241,7 +241,13 @@ def _fit_transform_column(column, columns_to_handle, transformer):
         df_module_name = sbd.dataframe_module_name(column)
         transformer.set_output(transform=df_module_name)
     transformer_input = _prepare_transformer_input(transformer, column)
-    output = transformer.fit_transform(transformer_input)
+    try:
+        output = transformer.fit_transform(transformer_input)
+    except Exception as e:
+        raise RuntimeError(
+            f"Transformer {transformer.__class__.__name__}.fit_transform "
+            f"failed on column {col_name}"
+        ) from e
     if output is NotImplemented:
         return col_name, [column], None
     output_cols = sbd.to_column_list(output)
@@ -252,7 +258,13 @@ def _transform_column(column, transformer):
     if transformer is None:
         return [column]
     transformer_input = _prepare_transformer_input(transformer, column)
-    output = transformer.transform(transformer_input)
+    try:
+        output = transformer.transform(transformer_input)
+    except Exception as e:
+        raise RuntimeError(
+            f"Transformer {transformer.__class__.__name__}.transform "
+            f"failed on column {sbd.name(column)}"
+        ) from e
     output_cols = sbd.to_column_list(output)
     return output_cols
 
