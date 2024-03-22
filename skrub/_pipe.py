@@ -2,7 +2,6 @@ import io
 import itertools
 import traceback
 
-import numpy as np
 from sklearn.base import clone
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
@@ -277,7 +276,7 @@ class Pipe:
                 out.write("      " + line)
         return out.getvalue()
 
-    def get_cv_results_table(self, fitted_gs, convert_log_scale=False):
+    def get_cv_results_table(self, fitted_gs, with_metadata=False):
         import pandas as pd
 
         all_params = fitted_gs.cv_results_["params"]
@@ -286,6 +285,7 @@ class Pipe:
         mean_fit_time = fitted_gs.cv_results_["mean_fit_time"]
         all_rows = []
         param_names = set()
+        metadata = {}
         for score, std, time, params in zip(
             mean_test_scores, std_test_scores, mean_fit_time, all_params
         ):
@@ -293,22 +293,22 @@ class Pipe:
             for param_id, param in params.items():
                 choice_name = param.in_choice_ or param_id
                 value = param.name_ or param.value_
-                if convert_log_scale and getattr(param, "is_from_log_scale_", False):
-                    choice_name = f"log10({choice_name})"
-                    value = np.log10(value)
                 row[choice_name] = value
                 param_names.add(choice_name)
+                md = metadata.get(choice_name, {})
+                if getattr(param, "is_from_log_scale_", False):
+                    md["log_scale"] = True
+                else:
+                    md.setdefault("log_scale", False)
+                metadata[choice_name] = md
             all_rows.append(row)
         all_ordered_param_names = _get_all_param_names(self._get_param_grid())
-        all_ordered_param_names = itertools.chain(
-            *((n, f"log10({n})") for n in all_ordered_param_names)
-        )
         ordered_param_names = [n for n in all_ordered_param_names if n in param_names]
         cols = ["mean_score"] + ordered_param_names + ["fit_time", "std_score"]
         table = pd.DataFrame(all_rows, columns=cols).sort_values(
             "mean_score", ascending=False, ignore_index=True
         )
-        return table
+        return table, metadata if with_metadata else table
 
     def __repr__(self):
         n_steps = len(self._steps)
