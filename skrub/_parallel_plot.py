@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.preprocessing import OrdinalEncoder
 
 __all__ = ["get_parallel_coord_data", "plot_parallel_coord", "DEFAULT_COLORSCALE"]
-DEFAULT_COLORSCALE = "inferno"
+DEFAULT_COLORSCALE = "bluered"
 
 
 def plot_parallel_coord(cv_results, metadata, colorscale=DEFAULT_COLORSCALE):
