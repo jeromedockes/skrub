@@ -317,17 +317,14 @@ class Pipe:
         return (table, metadata) if return_metadata else table
 
     def plot_parallel_coord(
-        self, fitted_search, colorscale=DEFAULT_COLORSCALE, score_constraintrange=None
+        self, fitted_search, colorscale=DEFAULT_COLORSCALE, min_score=None
     ):
         cv_results, metadata = self.get_cv_results_table(
             fitted_search, return_metadata=True
         )
-        return plot_parallel_coord(
-            cv_results,
-            metadata,
-            colorscale=colorscale,
-            score_constraintrange=score_constraintrange,
-        )
+        if min_score is not None:
+            cv_results = cv_results[cv_results["mean_score"] >= min_score]
+        return plot_parallel_coord(cv_results, metadata, colorscale=colorscale)
 
     def __repr__(self):
         n_steps = len(self._steps)
