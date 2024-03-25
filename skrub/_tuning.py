@@ -178,6 +178,28 @@ def choose_from(outcomes, name=None):
     return Choice(prepared_outcomes, name=name)
 
 
+class Pick(Choice):
+    # TODO only one API should be kept, see description of pick_from
+
+    def __repr__(self):
+        args = [out.value_ for out in self.outcomes_ if out.name_ is None]
+        kwargs = {
+            out.name_: out.value_ for out in self.outcomes_ if out.name_ is not None
+        }
+        args_r = _utils.repr_args(args, kwargs)
+        return f"pick_from({args_r})" + self._get_setters_snippet()
+
+
+def pick_from(*outcomes, **named_outcomes):
+    # TODO either remove or replace choose_from with this the two are included
+    # now to facilitate discussions, but in the end only one API should remain,
+    # (passing a dict or kwargs), and be called choose_from
+    prepared_outcomes = [Outcome(outcome) for outcome in outcomes] + [
+        Outcome(val, name) for name, val in named_outcomes.items()
+    ]
+    return Pick(prepared_outcomes)
+
+
 def optional(value, name=None):
     return Optional([Outcome(value, "true"), Outcome(None, "false")], name=name)
 

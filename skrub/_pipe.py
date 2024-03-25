@@ -11,7 +11,7 @@ from . import _join_utils
 from . import selectors as s
 from ._add_estimator_methods import camel_to_snake
 from ._parallel_plot import DEFAULT_COLORSCALE, plot_parallel_coord
-from ._tuning import (
+from ._tuning import (  # TODO only choose_from or pick_from will remain
     Choice,
     NumericChoice,
     Optional,
@@ -23,13 +23,21 @@ from ._tuning import (
     grid_description,
     optional,
     params_description,
+    pick_from,
     set_params_to_first,
     unwrap,
     unwrap_first,
     write_indented,
 )
 
-__all__ = ["Pipe", "choose_from", "optional", "choose_float", "choose_int"]
+__all__ = [
+    "Pipe",
+    "choose_from",
+    "pick_from",
+    "optional",
+    "choose_float",
+    "choose_int",
+]
 
 
 class NamedParamPipeline(Pipeline):
