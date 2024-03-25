@@ -1,12 +1,13 @@
 import io
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 from scipy import stats
 from sklearn.base import clone
 from sklearn.utils import check_random_state
 
+from . import _utils
 from ._fluent_classes import fluent_class
 
 
@@ -21,9 +22,6 @@ class Outcome:
             return repr(self.name_)
         return repr(self.value_)
 
-    def value(self, new_value):
-        return self._with_params(value=new_value)
-
 
 class BaseChoice:
     pass
@@ -37,12 +35,7 @@ class Choice(Sequence, BaseChoice):
     def __post_init__(self):
         if not self.outcomes_:
             raise TypeError("Choice should be given at least one outcome.")
-        self.outcomes_ = list(self.outcomes_)
-        self._update_outcome_names()
-
-    def _update_outcome_names(self):
-        for outcome in self.outcomes_:
-            outcome.in_choice_ = self.name_
+        self.outcomes_ = [out.in_choice(self.name_) for out in self.outcomes_]
 
     def take_outcome(self, idx):
         out = self.outcomes_[idx]
@@ -50,6 +43,22 @@ class Choice(Sequence, BaseChoice):
         if not rest:
             return out, None
         return out, self._with_params(outcomes=rest)
+
+    def map_values(self, func):
+        outcomes = [out.value(func(out.value_)) for out in self.outcomes_]
+        return self.outcomes(outcomes)
+
+    def __repr__(self):
+        if self.outcomes_[0].name_ is None:
+            args = [out.value_ for out in self.outcomes_]
+        else:
+            args = {out.name_: out.value_ for out in self.outcomes_}
+        args_r = _utils.repr_args(
+            (args,),
+            {"name": self.name_},
+            defaults={"name": None},
+        )
+        return f"choose_from({args_r})"
 
     def __getitem__(self, item):
         return self.outcomes_[item]
@@ -59,27 +68,6 @@ class Choice(Sequence, BaseChoice):
 
     def __iter__(self):
         return iter(self.outcomes_)
-
-    def _get_factory_repr(self):
-        outcomes_repr = ", ".join(
-            [
-                repr(outcome.value_)
-                for outcome in self.outcomes_
-                if outcome.name_ is None
-            ]
-            + [
-                f"{outcome.name_}={outcome.value_!r}"
-                for outcome in self.outcomes_
-                if outcome.name_ is not None
-            ]
-        )
-        return f"choose({outcomes_repr})"
-
-    def map_values(self, func):
-        outcomes = []
-        for out in self.outcomes_:
-            outcomes.append(out.value(func(out.value_)))
-        return self.__class__(**(self._to_dict() | {"outcomes": outcomes}))
 
 
 def _check_bounds(low, high, log):
@@ -94,7 +82,7 @@ def _check_bounds(low, high, log):
 @fluent_class
 class NumericOutcome(Outcome):
     value_: int | float
-    is_from_log_scale_: bool
+    is_from_log_scale_: bool = False
     name_: str | None = None
     in_choice_: str | None = None
 
@@ -120,11 +108,16 @@ class NumericChoice(BaseChoice):
             value = value.astype(int)
         return NumericOutcome(value, self.log_, in_choice=self.name_)
 
-    def _get_factory_repr(self):
-        parts = [repr(self.low_), repr(self.high_)]
-        if self.log_:
-            parts.append("log=True")
-        args = ", ".join(parts)
+    def __repr__(self):
+        args = _utils.repr_args(
+            (self.low_, self.high_),
+            {
+                "log": self.log_,
+                "n_steps": getattr(self, "n_steps_", None),
+                "name": self.name_,
+            },
+            defaults={"log": False, "n_steps": None, "name": None},
+        )
         if self.to_int_:
             return f"choose_int({args})"
         return f"choose_float({args})"
@@ -156,15 +149,8 @@ class DiscretizedNumericChoice(Sequence, NumericChoice):
         value = random_state.choice(self.grid, size=size)
         return NumericOutcome(value, self.log_, in_choice=self.name_)
 
-    def _get_factory_repr(self):
-        parts = [repr(self.low_), repr(self.high_)]
-        if self.log_:
-            parts.append("log=True")
-        parts.append(f"n_steps={self.n_steps_}")
-        args = ", ".join(parts)
-        if self.to_int_:
-            return f"choose_int({args})"
-        return f"choose_float({args})"
+    def __repr__(self):
+        return super().__repr__()
 
     def __getitem__(self, item):
         return self.grid[item]
@@ -177,31 +163,39 @@ class DiscretizedNumericChoice(Sequence, NumericChoice):
 
 
 class Optional(Choice):
-    def _get_factory_repr(self):
-        return f"optional({self.outcomes_[0].value_!r})"
+    def __repr__(self):
+        args = _utils.repr_args(
+            (unwrap_first(self),), {"name": self.name_}, defaults={"name": None}
+        )
+        return f"optional({args})"
 
 
-def choose(*outcomes, **named_outcomes):
-    prepared_outcomes = [Outcome(outcome) for outcome in outcomes] + [
-        Outcome(val, name) for name, val in named_outcomes.items()
-    ]
-    return Choice(prepared_outcomes)
+def choose_from(outcomes, name=None):
+    if isinstance(outcomes, Mapping):
+        prepared_outcomes = [Outcome(val, key) for key, val in outcomes.items()]
+    else:
+        prepared_outcomes = [Outcome(val) for val in outcomes]
+    return Choice(prepared_outcomes, name=name)
 
 
-def optional(value):
-    return Optional([Outcome(value, "true"), Outcome(None, "false")])
+def optional(value, name=None):
+    return Optional([Outcome(value, "true"), Outcome(None, "false")], name=name)
 
 
-def choose_float(low, high, log=False, n_steps=None):
+def choose_float(low, high, log=False, n_steps=None, name=None):
     if n_steps is None:
-        return NumericChoice(low, high, log=log, to_int=False)
-    return DiscretizedNumericChoice(low, high, log=log, to_int=False, n_steps=n_steps)
+        return NumericChoice(low, high, log=log, to_int=False, name=name)
+    return DiscretizedNumericChoice(
+        low, high, log=log, to_int=False, n_steps=n_steps, name=name
+    )
 
 
-def choose_int(low, high, log=False, n_steps=None):
+def choose_int(low, high, log=False, n_steps=None, name=None):
     if n_steps is None:
-        return NumericChoice(low, high, log=log, to_int=True)
-    return DiscretizedNumericChoice(low, high, log=log, to_int=True, n_steps=n_steps)
+        return NumericChoice(low, high, log=log, to_int=True, name=name)
+    return DiscretizedNumericChoice(
+        low, high, log=log, to_int=True, n_steps=n_steps, name=name
+    )
 
 
 class Placeholder:
@@ -350,7 +344,7 @@ def grid_description(grid):
             if v.name_ is not None:
                 k = v.name_
             if isinstance(v, NumericChoice):
-                write_indented(f"{prefix}{k!r}: ", f"{v._get_factory_repr()}\n", buf)
+                write_indented(f"{prefix}{k!r}: ", f"{v}\n", buf)
             elif len(v.outcomes_) == 1:
                 write_indented(f"{prefix}{k!r}: ", f"{v.outcomes_[0]}\n", buf)
             else:

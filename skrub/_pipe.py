@@ -7,6 +7,7 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 
 from . import _dataframe as sbd
+from . import _join_utils
 from . import selectors as s
 from ._add_estimator_methods import camel_to_snake
 from ._parallel_plot import DEFAULT_COLORSCALE, plot_parallel_coord
@@ -14,8 +15,8 @@ from ._tuning import (
     Choice,
     NumericChoice,
     Optional,
-    choose,
     choose_float,
+    choose_from,
     choose_int,
     contains_choice,
     expand_grid,
@@ -28,7 +29,7 @@ from ._tuning import (
     write_indented,
 )
 
-__all__ = ["Pipe", "choose", "optional", "choose_float", "choose_int"]
+__all__ = ["Pipe", "choose_from", "optional", "choose_float", "choose_int"]
 
 
 class NamedParamPipeline(Pipeline):
@@ -284,20 +285,16 @@ class Pipe:
                 out.write("      " + line)
         return out.getvalue()
 
-    def get_cv_results_table(self, fitted_search, return_metadata=False):
+    def get_cv_results_table(
+        self, fitted_search, return_metadata=False, detailed=False
+    ):
         import pandas as pd
 
-        all_params = fitted_search.cv_results_["params"]
-        mean_test_scores = fitted_search.cv_results_["mean_test_score"]
-        std_test_scores = fitted_search.cv_results_["std_test_score"]
-        mean_fit_time = fitted_search.cv_results_["mean_fit_time"]
         all_rows = []
         param_names = set()
         log_scale_columns = set()
-        for score, std, time, params in zip(
-            mean_test_scores, std_test_scores, mean_fit_time, all_params
-        ):
-            row = {"mean_score": score, "fit_time": time, "std_score": std}
+        for params in fitted_search.cv_results_["params"]:
+            row = {}
             for param_id, param in params.items():
                 choice_name = param.in_choice_ or param_id
                 value = param.name_ or param.value_
@@ -310,20 +307,50 @@ class Pipe:
         metadata = {"log_scale_columns": list(log_scale_columns)}
         all_ordered_param_names = _get_all_param_names(self._get_param_grid())
         ordered_param_names = [n for n in all_ordered_param_names if n in param_names]
-        cols = ["mean_score"] + ordered_param_names + ["fit_time", "std_score"]
-        table = pd.DataFrame(all_rows, columns=cols).sort_values(
-            "mean_score", ascending=False, ignore_index=True
-        )
+        table = pd.DataFrame(all_rows, columns=ordered_param_names)
+        result_keys = [
+            "mean_test_score",
+            "std_test_score",
+            "mean_fit_time",
+            "std_fit_time",
+            "mean_score_time",
+            "std_score_time",
+            "mean_train_score",
+            "std_train_score",
+        ]
+        new_names = _join_utils.pick_column_names(table.columns, result_keys)
+        renaming = dict(zip(table.columns, new_names))
+        table.columns = new_names
+        metadata["log_scale_columns"] = [
+            renaming[c] for c in metadata["log_scale_columns"]
+        ]
+        table.insert(0, "mean_test_score", fitted_search.cv_results_["mean_test_score"])
+        if detailed:
+            for k in result_keys[1:]:
+                if k in fitted_search.cv_results_:
+                    table.insert(table.shape[1], k, fitted_search.cv_results_[k])
+        table = table.sort_values("mean_test_score", ascending=False, ignore_index=True)
         return (table, metadata) if return_metadata else table
 
     def plot_parallel_coord(
         self, fitted_search, colorscale=DEFAULT_COLORSCALE, min_score=None
     ):
         cv_results, metadata = self.get_cv_results_table(
-            fitted_search, return_metadata=True
+            fitted_search, return_metadata=True, detailed=True
+        )
+        cv_results = cv_results.drop(
+            [
+                "std_test_score",
+                "std_fit_time",
+                "std_score_time",
+                "mean_train_score",
+                "std_train_score",
+            ],
+            axis="columns",
+            errors="ignore",
         )
         if min_score is not None:
-            cv_results = cv_results[cv_results["mean_score"] >= min_score]
+            cv_results = cv_results[cv_results["mean_test_score"] >= min_score]
         return plot_parallel_coord(cv_results, metadata, colorscale=colorscale)
 
     def __repr__(self):

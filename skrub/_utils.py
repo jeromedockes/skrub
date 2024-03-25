@@ -200,7 +200,12 @@ def renaming_func(renaming):
     return renaming
 
 
-def repr_args(args, kwargs):
+def repr_args(args, kwargs, defaults={}):
     return ", ".join(
-        [repr(a) for a in args] + [f"{k}={v!r}" for k, v in kwargs.items()]
+        [repr(a) for a in args]
+        + [
+            f"{k}={v!r}"
+            for k, v in kwargs.items()
+            if k not in defaults or defaults[k] != v
+        ]
     )

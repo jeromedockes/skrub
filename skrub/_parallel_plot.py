@@ -30,10 +30,10 @@ def get_parallel_coord_data(cv_results, metadata, colorscale=DEFAULT_COLORSCALE)
     ]
     return dict(
         line=dict(
-            color=cv_results["mean_score"],
+            color=cv_results["mean_test_score"],
             colorscale=colorscale,
             showscale=True,
-            colorbar=dict(title=dict(text="mean_score")),
+            colorbar=dict(title=dict(text="mean_test_score")),
         ),
         dimensions=prepared_columns,
     )

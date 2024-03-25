@@ -2,12 +2,17 @@ import inspect
 
 
 def _to_arg(name):
-    assert name.endswith("_")
+    if not name.endswith("_"):
+        raise ValueError("Fluent class attribute names must end with '_'")
     return name.removesuffix("_")
 
 
+def _to_attribute(name):
+    return name + "_"
+
+
 def _setattr_default(obj, attr_name, value):
-    if hasattr(obj, attr_name):
+    if attr_name in obj.__dict__:
         return
     setattr(obj, attr_name, value)
 
@@ -23,19 +28,17 @@ def fluent_class(cls):
     cls._fields = (*args, *kwargs)
     cls._pos_fields = args
     cls._kw_fields = kwargs
-    cls.__init__ = _make_init(args, kwargs)
-    cls.__repr__ = _repr
-    _setattr_default(cls, "_get_options_repr", _get_options_repr)
-    _setattr_default(cls, "_get_pos_args_repr", _get_pos_args_repr)
-    _setattr_default(cls, "_get_factory_repr", _get_factory_repr)
+    _setattr_default(cls, "__init__", _make_init(args, kwargs))
+    _setattr_default(cls, "__repr__", _repr)
     _setattr_default(cls, "_to_dict", _to_dict)
-    _setattr_default(cls, "_with_params", _with_params)
-    for arg in [*args, *kwargs]:
+    _setattr_default(cls, "_with_params", _with_attributes)
+    _setattr_default(cls, "_get_setters_snippet", _get_setters_snippet)
+    for arg in cls._fields:
         _setattr_default(cls, arg, _make_setter(arg))
     return cls
 
 
-def _get_options_repr(self):
+def _get_setters_snippet(self):
     parts = []
     attr_dict = self._to_dict()
     for k, v in self._kw_fields.items():
@@ -47,13 +50,13 @@ def _get_options_repr(self):
     return "." + ".".join(parts)
 
 
-def _make_func(lines):
-    exec("".join(lines), globals(), d := {})
+def _make_func(lines, local_vars={}):
+    exec("".join(lines), globals(), d := dict(local_vars))
     return d.popitem()[1]
 
 
 def _make_init(args, kwargs):
-    sig = ", ".join(["self", *args, *(f"{k}={v!r}" for k, v in kwargs.items())])
+    sig = ", ".join(["self", *args, *(f"{k}={k}" for k in kwargs)])
     lines = (
         [f"def __init__({sig}):\n"]
         + [f"    self.{name}_ = {name}\n" for name in [*args, *kwargs]]
@@ -62,7 +65,7 @@ def _make_init(args, kwargs):
             "        self.__post_init__()\n",
         ]
     )
-    return _make_func(lines)
+    return _make_func(lines, kwargs)
 
 
 def _make_setter(arg):
@@ -74,26 +77,20 @@ def _make_setter(arg):
 
 
 def _to_dict(self):
-    d = {}
-    for k in self.__class__._fields:
-        d[k] = getattr(self, k + "_")
-    return d
+    return {k: getattr(self, _to_attribute(k)) for k in self.__class__._fields}
 
 
-def _with_params(self, **new_params):
-    return self.__class__(**(self._to_dict() | new_params))
-
-
-def _get_pos_args_repr(self):
-    attr_dict = self._to_dict()
-    return ", ".join(repr(attr_dict[k]) for k in self._pos_fields)
-
-
-def _get_factory_repr(self):
-    args = _get_pos_args_repr(self)
-    return f"{self.__class__.__name__}({args})"
+def _with_attributes(self, **new_attributes):
+    return self.__class__(**(self._to_dict() | new_attributes))
 
 
 def _repr(self):
-    opts = self._get_options_repr()
-    return f"{self._get_factory_repr()}{opts}"
+    args_repr = ", ".join(
+        [repr(getattr(self, _to_attribute(a))) for a in self._pos_fields]
+        + [
+            f"{k}={v!r}"
+            for k, d in self._kw_fields.items()
+            if (v := getattr(self, _to_attribute(k))) != d
+        ]
+    )
+    return f"{self.__class__.__name__}({args_repr})"
