@@ -2,28 +2,46 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OrdinalEncoder
 
-__all__ = ["get_parallel_coord_data", "plot_parallel_coord"]
+__all__ = ["get_parallel_coord_data", "plot_parallel_coord", "DEFAULT_COLORSCALE"]
+DEFAULT_COLORSCALE = "inferno"
 
 
-def plot_parallel_coord(cv_results, metadata):
+def plot_parallel_coord(
+    cv_results, metadata, colorscale=DEFAULT_COLORSCALE, score_constraintrange=None
+):
     try:
         import plotly.graph_objects as go
     except ImportError:
         print("please install plotly.")
         return None
-    return go.Figure(data=go.Parcoords(**get_parallel_coord_data(cv_results, metadata)))
+    return go.Figure(
+        data=go.Parcoords(
+            **get_parallel_coord_data(
+                cv_results,
+                metadata,
+                colorscale=colorscale,
+                score_constraintrange=score_constraintrange,
+            )
+        )
+    )
 
 
-def get_parallel_coord_data(cv_results, metadata):
+def get_parallel_coord_data(
+    cv_results, metadata, colorscale=DEFAULT_COLORSCALE, score_constraintrange=None
+):
     prepared_columns = [
         _prepare_column(cv_results[col_name], col_name in metadata["log_scale_columns"])
         for col_name in cv_results.columns
     ]
-
+    if score_constraintrange is not None:
+        assert cv_results.columns[0] == "mean_score"
+        col = cv_results["mean_score"]
+        low, high = col.quantile(score_constraintrange)
+        prepared_columns[0]["constraintrange"] = (low, high)
     return dict(
         line=dict(
             color=cv_results["mean_score"],
-            colorscale="Portland",
+            colorscale=colorscale,
             showscale=True,
             colorbar=dict(title=dict(text="mean_score")),
         ),

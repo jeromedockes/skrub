@@ -9,7 +9,7 @@ from sklearn.pipeline import Pipeline
 from . import _dataframe as sbd
 from . import selectors as s
 from ._add_estimator_methods import camel_to_snake
-from ._parallel_plot import plot_parallel_coord
+from ._parallel_plot import DEFAULT_COLORSCALE, plot_parallel_coord
 from ._tuning import (
     Choice,
     NumericChoice,
@@ -316,11 +316,18 @@ class Pipe:
         )
         return (table, metadata) if return_metadata else table
 
-    def plot_parallel_coord(self, fitted_search):
+    def plot_parallel_coord(
+        self, fitted_search, colorscale=DEFAULT_COLORSCALE, score_constraintrange=None
+    ):
         cv_results, metadata = self.get_cv_results_table(
             fitted_search, return_metadata=True
         )
-        return plot_parallel_coord(cv_results, metadata)
+        return plot_parallel_coord(
+            cv_results,
+            metadata,
+            colorscale=colorscale,
+            score_constraintrange=score_constraintrange,
+        )
 
     def __repr__(self):
         n_steps = len(self._steps)

@@ -131,7 +131,7 @@ class NumericChoice(BaseChoice):
 
 
 @fluent_class
-class DiscretizedNumericChoice(NumericChoice):
+class DiscretizedNumericChoice(Sequence, NumericChoice):
     low_: float
     high_: float
     n_steps_: int
@@ -165,6 +165,15 @@ class DiscretizedNumericChoice(NumericChoice):
         if self.to_int_:
             return f"choose_int({args})"
         return f"choose_float({args})"
+
+    def __getitem__(self, item):
+        return self.grid[item]
+
+    def __len__(self):
+        return len(self.grid)
+
+    def __iter__(self):
+        return iter(self.grid)
 
 
 class Optional(Choice):
