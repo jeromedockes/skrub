@@ -66,6 +66,52 @@ class Choice(Sequence, BaseChoice):
         return iter(self.outcomes_)
 
 
+def choose_from(*outcomes, **named_outcomes):
+    prepared_outcomes = [Outcome(outcome) for outcome in outcomes] + [
+        Outcome(val, name) for name, val in named_outcomes.items()
+    ]
+    return Choice(prepared_outcomes)
+
+
+class Pick(Choice):
+    # TODO only one API should be kept, see description of pick_from
+
+    def __repr__(self):
+        if self.outcomes_[0].name_ is None:
+            args = [out.value_ for out in self.outcomes_]
+        else:
+            args = {out.name_: out.value_ for out in self.outcomes_}
+        args_r = _utils.repr_args(
+            (args,),
+            {"name": self.name_},
+            defaults={"name": None},
+        )
+        return f"pick_from({args_r})"
+
+
+def pick_from(outcomes, name=None):
+    # TODO either remove or replace choose_from with this the two are included
+    # now to facilitate discussions, but in the end only one API should remain,
+    # (passing a dict or kwargs), and be called choose_from
+    if isinstance(outcomes, Mapping):
+        prepared_outcomes = [Outcome(val, key) for key, val in outcomes.items()]
+    else:
+        prepared_outcomes = [Outcome(val) for val in outcomes]
+    return Pick(prepared_outcomes, name=name)
+
+
+class Optional(Choice):
+    def __repr__(self):
+        args = _utils.repr_args(
+            (unwrap_first(self),), {"name": self.name_}, defaults={"name": None}
+        )
+        return f"optional({args})"
+
+
+def optional(value, name=None):
+    return Optional([Outcome(value, "true"), Outcome(None, "false")], name=name)
+
+
 def _check_bounds(low, high, log):
     if high < low:
         raise ValueError(
@@ -156,52 +202,6 @@ class DiscretizedNumericChoice(Sequence, NumericChoice):
 
     def __iter__(self):
         return iter(self.grid)
-
-
-class Optional(Choice):
-    def __repr__(self):
-        args = _utils.repr_args(
-            (unwrap_first(self),), {"name": self.name_}, defaults={"name": None}
-        )
-        return f"optional({args})"
-
-
-def choose_from(*outcomes, **named_outcomes):
-    prepared_outcomes = [Outcome(outcome) for outcome in outcomes] + [
-        Outcome(val, name) for name, val in named_outcomes.items()
-    ]
-    return Choice(prepared_outcomes)
-
-
-class Pick(Choice):
-    # TODO only one API should be kept, see description of pick_from
-
-    def __repr__(self):
-        if self.outcomes_[0].name_ is None:
-            args = [out.value_ for out in self.outcomes_]
-        else:
-            args = {out.name_: out.value_ for out in self.outcomes_}
-        args_r = _utils.repr_args(
-            (args,),
-            {"name": self.name_},
-            defaults={"name": None},
-        )
-        return f"pick_from({args_r})"
-
-
-def pick_from(outcomes, name=None):
-    # TODO either remove or replace choose_from with this the two are included
-    # now to facilitate discussions, but in the end only one API should remain,
-    # (passing a dict or kwargs), and be called choose_from
-    if isinstance(outcomes, Mapping):
-        prepared_outcomes = [Outcome(val, key) for key, val in outcomes.items()]
-    else:
-        prepared_outcomes = [Outcome(val) for val in outcomes]
-    return Pick(prepared_outcomes, name=name)
-
-
-def optional(value, name=None):
-    return Optional([Outcome(value, "true"), Outcome(None, "false")], name=name)
 
 
 def choose_float(low, high, log=False, n_steps=None, name=None):
