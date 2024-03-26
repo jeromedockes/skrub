@@ -29,19 +29,25 @@ DATETIME_TRANSFORMER = EncodeDatetime()
 NUMERIC_TRANSFORMER = ToFloat32()
 
 
-class _CreatedBy(s.Selector):
-    def __init__(self, *transformers):
-        self.transformers = transformers
-
-    def _matches(self, col):
-        col_name = sbd.name(col)
-        for step in self.transformers:
-            if hasattr(step, "created_outputs_"):
-                if col_name in step.created_outputs_:
-                    return True
-            elif col_name in step.get_feature_names_out():
+def _created_by(col, transformers):
+    col_name = sbd.name(col)
+    for step in transformers:
+        if hasattr(step, "created_outputs_"):
+            if col_name in step.created_outputs_:
                 return True
-        return False
+        elif hasattr(step, "get_feature_names_out") and (
+            col_name in step.get_feature_names_out()
+        ):
+            return True
+    return False
+
+
+def created_by(*transformers):
+    return s.Filter(
+        _created_by,
+        args=(transformers,),
+        selector_repr=f"created_by(<any of {len(transformers)} transformers>)",
+    )
 
 
 def _make_table_vectorizer_pipeline(
@@ -72,11 +78,11 @@ def _make_table_vectorizer_pipeline(
         (cols & (s.string() | s.categorical()), high_cardinality_transformer),
     ]:
         feature_extraction_steps.append(
-            (selector - _CreatedBy(*feature_extraction_steps)).make_transformer(
+            (selector - created_by(*feature_extraction_steps)).make_transformer(
                 transformer, n_jobs=n_jobs, columnwise=True
             )
         )
-    remainder = cols - _CreatedBy(*feature_extraction_steps)
+    remainder = cols - created_by(*feature_extraction_steps)
     remainder_steps = [
         remainder.make_transformer(
             remainder_transformer, n_jobs=n_jobs, columnwise=True

@@ -10,6 +10,7 @@ from ._gap_encoder import GapEncoder
 from ._minhash_encoder import MinHashEncoder
 from ._pandas_convert_dtypes import PandasConvertDTypes
 from ._select_cols import Drop
+from ._table_vectorizer import TableVectorizer
 from ._to_categorical import ToCategorical
 from ._to_datetime import ToDatetime
 from ._to_float import ToFloat32
@@ -30,6 +31,7 @@ _SKRUB_TRANSFORMERS = [
         ToNumeric,
         ToFloat32,
         Drop,
+        TableVectorizer,
     ]
 ]
 

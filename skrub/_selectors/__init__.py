@@ -234,7 +234,18 @@ ends_with_mm('_mm')
 """
 
 from . import _selectors
-from ._base import Selector, all, cols, filter, filter_names, inv, make_selector, select
+from ._base import (
+    Filter,
+    NameFilter,
+    Selector,
+    all,
+    cols,
+    filter,
+    filter_names,
+    inv,
+    make_selector,
+    select,
+)
 from ._selectors import *  # noqa: F403,F401
 
 __all__ = [
@@ -243,6 +254,8 @@ __all__ = [
     "cols",
     "filter",
     "filter_names",
+    "Filter",
+    "NameFilter",
     "inv",
     "make_selector",
     "select",

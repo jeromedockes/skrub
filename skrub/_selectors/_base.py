@@ -239,11 +239,14 @@ class XOr(Selector):
 
 
 class Filter(Selector):
-    def __init__(self, predicate, args=None, kwargs=None, name=None):
+    def __init__(
+        self, predicate, args=None, kwargs=None, name=None, selector_repr=None
+    ):
         self.predicate = predicate
         self.args = () if args is None else args
         self.kwargs = {} if kwargs is None else kwargs
         self.name = name
+        self.selector_repr = selector_repr
 
     def _matches(self, col):
         return self.predicate(col, *self.args, **self.kwargs)
@@ -253,6 +256,8 @@ class Filter(Selector):
         return "filter"
 
     def __repr__(self):
+        if self.selector_repr is not None:
+            return self.selector_repr
         if self.name is None:
             args_r = repr_args((self.predicate,) + self.args, self.kwargs)
             return f"{self._default_name()}({args_r})"

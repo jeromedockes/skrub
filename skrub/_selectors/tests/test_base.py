@@ -17,6 +17,10 @@ def test_repr():
     (filter_names(<function <lambda> at ...>) ^ filter(<function <lambda> at ...>))
     >>> ~s.all()
     (~all())
+    >>> s.Filter(lambda c, x: c[2] == x, args=(3,), name='my_filter')
+    my_filter(3)
+    >>> s.Filter(lambda c, x: c[2] == x, args=(3,), selector_repr='my_filter()')
+    my_filter()
 
     """
 
