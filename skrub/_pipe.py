@@ -154,7 +154,7 @@ class Pipe:
             for estimator in self._get_estimators()
         ]
 
-    def _get_param_grid(self):
+    def get_param_grid(self):
         grid = {
             name: estimator
             for (name, estimator) in zip(self._get_step_names(), self._get_estimators())
@@ -170,7 +170,7 @@ class Pipe:
 
     def get_grid_search(self, **gs_params):
         # TODO make gs_params explicit
-        grid = self._get_param_grid()
+        grid = self.get_param_grid()
         if any(
             isinstance(param, NumericChoice)
             for subgrid in grid
@@ -184,7 +184,7 @@ class Pipe:
 
     def get_randomized_search(self, **rs_params):
         # TODO make rs_params explicit
-        grid = self._get_param_grid()
+        grid = self.get_param_grid()
         return RandomizedSearchCV(self.get_pipeline(), grid, **rs_params)
 
     def chain(self, *steps):
@@ -264,7 +264,7 @@ class Pipe:
         return skrubview.Report(data, order_by=order_by)
 
     def get_param_grid_description(self):
-        return grid_description(self._get_param_grid())
+        return grid_description(self.get_param_grid())
 
     def get_pipeline_description(self):
         return _describe_pipeline(zip(self._get_step_names(), self._steps))
@@ -313,7 +313,7 @@ class Pipe:
             all_rows.append(row)
 
         metadata = {"log_scale_columns": list(log_scale_columns)}
-        all_ordered_param_names = _get_all_param_names(self._get_param_grid())
+        all_ordered_param_names = _get_all_param_names(self.get_param_grid())
         ordered_param_names = [n for n in all_ordered_param_names if n in param_names]
         table = pd.DataFrame(all_rows, columns=ordered_param_names)
         result_keys = [
