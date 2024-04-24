@@ -2,6 +2,7 @@ from sklearn.base import BaseEstimator
 
 from . import _dataframe as sbd
 from ._dispatch import dispatch
+from ._exceptions import RejectColumn
 
 
 @dispatch
@@ -26,7 +27,9 @@ class ToFloat32(BaseEstimator):
 
     def fit_transform(self, column):
         if not sbd.is_numeric(column):
-            return NotImplemented
+            raise RejectColumn(
+                f"Column {sbd.name(column)!r} does not have a numeric dtype."
+            )
         return self.transform(column)
 
     def transform(self, column):

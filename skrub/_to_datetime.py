@@ -4,6 +4,7 @@ from . import _dataframe as sbd
 from . import _datetime_utils
 from . import _selectors as s
 from ._dispatch import dispatch
+from ._exceptions import RejectColumn
 
 _SAMPLE_SIZE = 1000
 
@@ -33,11 +34,13 @@ class ToDatetime(BaseEstimator):
             self.output_dtype_ = sbd.dtype(column)
             return column
         if not (sbd.is_string(column) or sbd.is_object(column)):
-            return NotImplemented
+            raise RejectColumn(f"Column {sbd.name(column)!r} does not contain strings.")
 
         datetime_format = self._get_datetime_format(column)
         if datetime_format is None:
-            return NotImplemented
+            raise RejectColumn(
+                f"Could not find a datetime format for column {sbd.name(column)!r}."
+            )
 
         self.datetime_format_ = datetime_format
         as_datetime = sbd.to_datetime(
@@ -100,7 +103,8 @@ def _to_datetime_dataframe(df, format=None):
 @to_datetime.specialize("pandas", argument_type="Column")
 @to_datetime.specialize("polars", argument_type="Column")
 def _to_datetime_column(column, format=None):
-    result = ToDatetime(datetime_format=format).fit_transform(column)
-    if result is NotImplemented:
+    try:
+        result = ToDatetime(datetime_format=format).fit_transform(column)
+    except RejectColumn:
         return column
     return result

@@ -8,6 +8,7 @@ from ._agg_joiner import AggJoiner, AggTarget
 from ._check_dependencies import check_dependencies
 from ._datetime_encoder import DatetimeEncoder
 from ._deduplicate import compute_ngram_distance, deduplicate
+from ._exceptions import RejectColumn
 from ._fuzzy_join import fuzzy_join
 from ._gap_encoder import GapEncoder
 from ._interpolation_joiner import InterpolationJoiner
@@ -43,4 +44,5 @@ __all__ = [
     "SelectCols",
     "DropCols",
     "selectors",
+    "RejectColumn",
 ]

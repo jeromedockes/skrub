@@ -1,0 +1,2 @@
+class RejectColumn(Exception):
+    pass

@@ -1,6 +1,7 @@
 from sklearn.base import BaseEstimator
 
 from . import _dataframe as sbd
+from ._exceptions import RejectColumn
 
 # Taken from pandas.io.parsers (version 1.1.4)
 STR_NA_VALUES = [
@@ -32,7 +33,7 @@ class CleanNullStrings(BaseEstimator):
 
     def fit_transform(self, column):
         if not sbd.is_string(column) or sbd.is_categorical(column):
-            return NotImplemented
+            raise RejectColumn(f"Column {sbd.name(column)!r} does not contain strings.")
         return self.transform(column)
 
     def transform(self, column):

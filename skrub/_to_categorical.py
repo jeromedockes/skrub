@@ -12,6 +12,7 @@ from sklearn.base import BaseEstimator
 from . import _dataframe as sbd
 from . import _utils
 from ._dispatch import dispatch
+from ._exceptions import RejectColumn
 
 
 @dispatch
@@ -72,10 +73,15 @@ class ToCategorical(BaseEstimator):
             self.unknown_category_ = None
             return column
         if not (sbd.is_string(column) or sbd.is_categorical(column)):
-            return NotImplemented
+            raise RejectColumn(
+                f"Column {sbd.name(column)!r} does not contain strings or categories."
+            )
         categories = list(sbd.drop_nulls(sbd.unique(column)))
         if self.max_categories <= len(categories):
-            return NotImplemented
+            raise RejectColumn(
+                f"Cardinality of column {sbd.name(column)!r} "
+                f"is >= threshold {self.max_categories}."
+            )
         token = _utils.random_string()
         self.unknown_category_ = f"skrub_unknown_category_{token}"
         self._categories = categories + [self.unknown_category_]

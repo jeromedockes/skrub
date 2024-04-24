@@ -5,6 +5,7 @@ from sklearn.base import BaseEstimator, TransformerMixin, clone
 
 from . import _dataframe as sbd
 from . import _selectors
+from ._exceptions import RejectColumn
 from ._join_utils import pick_column_names
 from ._utils import renaming_func
 
@@ -13,8 +14,8 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
     """Map a transformer to columns in a dataframe.
 
     A separate clone of the transformer is applied to each column separately.
-    Moreover, If the transformers' ``fit_transform`` returns ``NotImplemented``
-    for a particular column, that column is passed through unchanged.
+    Moreover, If the transformers' ``fit_transform`` raises a ``RejectColumn``
+    exception for a particular column, that column is passed through unchanged.
 
     Parameters
     ----------
@@ -25,10 +26,10 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
         transformer has a ``__single_column_transformer__`` attribute,
         ``fit_transform`` is passed directly the column (a pandas or polars
         Series) rather than a DataFrame. ``fit_transform`` must return either a
-        DataFrame, a Series, or a list of Series. ``fit_transform`` can return
-        ``NotImplemented`` to indicate that this transformer does not apply to
-        this column -- for example the ``ToDatetime`` transformer will return
-        ``NotImplemented`` for numerical columns. In this case, the column will
+        DataFrame, a Series, or a list of Series. ``fit_transform`` can raise
+        ``RejectColumn`` to indicate that this transformer does not apply to
+        this column -- for example the ``ToDatetime`` transformer will raise
+        ``RejectColumn`` for numerical columns. In this case, the column will
         appear unchanged in the output.
 
     cols : str, sequence of str, or skrub selector, optional
@@ -102,7 +103,7 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
     >>> scaling.used_inputs_
     ['A', 'B']
 
-    The transformer can return NotImplemented to indicate it cannot handle a
+    The transformer can raise ``RejectColumn`` to indicate it cannot handle a
     given column.
 
     >>> from skrub._to_datetime import ToDatetime
@@ -118,7 +119,9 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
     0   2024-01-29
     Name: birthday, dtype: datetime64[ns]
     >>> ToDatetime().fit_transform(df["city"])
-    NotImplemented
+    Traceback (most recent call last):
+        ...
+    skrub._exceptions.RejectColumn: Could not find a datetime format for column 'city'.
     >>> to_datetime = OnEachColumn(ToDatetime())
     >>> transformed = to_datetime.fit_transform(df)
     >>> transformed
@@ -243,13 +246,13 @@ def _fit_transform_column(column, columns_to_handle, transformer):
     transformer_input = _prepare_transformer_input(transformer, column)
     try:
         output = transformer.fit_transform(transformer_input)
+    except RejectColumn:
+        return col_name, [column], None
     except Exception as e:
         raise RuntimeError(
             f"Transformer {transformer.__class__.__name__}.fit_transform "
             f"failed on column {col_name}"
         ) from e
-    if output is NotImplemented:
-        return col_name, [column], None
     output_cols = sbd.to_column_list(output)
     return col_name, output_cols, transformer
 

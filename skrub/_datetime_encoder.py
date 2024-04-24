@@ -16,6 +16,7 @@ from . import _dataframe as sbd
 from . import _selectors as s
 from ._check_input import CheckInputDataFrame
 from ._dispatch import dispatch
+from ._exceptions import RejectColumn
 from ._to_datetime import ToDatetime
 
 _TIME_LEVELS = [
@@ -93,7 +94,9 @@ class EncodeDatetime(BaseEstimator):
     def fit_transform(self, column):
         self._check_params()
         if not sbd.is_any_date(column):
-            return NotImplemented
+            raise RejectColumn(
+                f"Column {sbd.name(column)!r} does not have Date or Datetime dtype."
+            )
         if self.resolution is None:
             self.extracted_features_ = []
         else:
