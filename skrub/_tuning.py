@@ -49,12 +49,16 @@ class Choice(Sequence, BaseChoice):
         return self.outcomes(outcomes)
 
     def __repr__(self):
-        args = [out.value_ for out in self.outcomes_ if out.name_ is None]
-        kwargs = {
-            out.name_: out.value_ for out in self.outcomes_ if out.name_ is not None
-        }
-        args_r = _utils.repr_args(args, kwargs)
-        return f"choose_from({args_r})" + self._get_setters_snippet()
+        if self.outcomes_[0].name_ is None:
+            args = [out.value_ for out in self.outcomes_]
+        else:
+            args = {out.name_: out.value_ for out in self.outcomes_}
+        args_r = _utils.repr_args(
+            (args,),
+            {"name": self.name_},
+            defaults={"name": None},
+        )
+        return f"choose_from({args_r})"
 
     def __getitem__(self, item):
         return self.outcomes_[item]
@@ -66,38 +70,34 @@ class Choice(Sequence, BaseChoice):
         return iter(self.outcomes_)
 
 
-def choose_from(*outcomes, **named_outcomes):
-    prepared_outcomes = [Outcome(outcome) for outcome in outcomes] + [
-        Outcome(val, name) for name, val in named_outcomes.items()
-    ]
-    return Choice(prepared_outcomes)
+def choose_from(outcomes, name=None):
+    if isinstance(outcomes, Mapping):
+        prepared_outcomes = [Outcome(val, key) for key, val in outcomes.items()]
+    else:
+        prepared_outcomes = [Outcome(val) for val in outcomes]
+    return Choice(prepared_outcomes, name=name)
 
 
 class Pick(Choice):
     # TODO only one API should be kept, see description of pick_from
 
     def __repr__(self):
-        if self.outcomes_[0].name_ is None:
-            args = [out.value_ for out in self.outcomes_]
-        else:
-            args = {out.name_: out.value_ for out in self.outcomes_}
-        args_r = _utils.repr_args(
-            (args,),
-            {"name": self.name_},
-            defaults={"name": None},
-        )
-        return f"pick_from({args_r})"
+        args = [out.value_ for out in self.outcomes_ if out.name_ is None]
+        kwargs = {
+            out.name_: out.value_ for out in self.outcomes_ if out.name_ is not None
+        }
+        args_r = _utils.repr_args(args, kwargs)
+        return f"pick_from({args_r})" + self._get_setters_snippet()
 
 
-def pick_from(outcomes, name=None):
+def pick_from(*outcomes, **named_outcomes):
     # TODO either remove or replace choose_from with this the two are included
     # now to facilitate discussions, but in the end only one API should remain,
     # (passing a dict or kwargs), and be called choose_from
-    if isinstance(outcomes, Mapping):
-        prepared_outcomes = [Outcome(val, key) for key, val in outcomes.items()]
-    else:
-        prepared_outcomes = [Outcome(val) for val in outcomes]
-    return Pick(prepared_outcomes, name=name)
+    prepared_outcomes = [Outcome(outcome) for outcome in outcomes] + [
+        Outcome(val, name) for name, val in named_outcomes.items()
+    ]
+    return Pick(prepared_outcomes)
 
 
 class Optional(Choice):
