@@ -3,7 +3,7 @@ import itertools
 import traceback
 
 from sklearn.base import clone
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 
 from . import _dataframe as sbd
@@ -11,6 +11,7 @@ from . import _join_utils
 from . import selectors as s
 from ._add_estimator_methods import camel_to_snake
 from ._parallel_plot import DEFAULT_COLORSCALE, plot_parallel_coord
+from ._select_cols import Drop
 from ._tuning import (  # TODO only choose_from or pick_from will remain
     Choice,
     NumericChoice,
@@ -109,12 +110,14 @@ class Pipe:
     def __init__(
         self,
         input_data=None,
+        y_cols=None,
         n_jobs=None,
         memory=None,
         preview_sample_size=200,
         random_seed=0,
     ):
         self.input_data = input_data
+        self.y_cols = y_cols
         if input_data is None:
             self.input_data_shape = None
         else:
@@ -123,11 +126,15 @@ class Pipe:
         self.memory = memory
         self.preview_sample_size = preview_sample_size
         self.random_seed = random_seed
-        self._steps = []
+        if self.y_cols is None:
+            self._steps = []
+        else:
+            self._steps = [(s.all() & self.y_cols).use(Drop()).name("drop_y_columns")]
 
     def _with_prepared_steps(self, steps):
         new = Pipe(
             input_data=self.input_data,
+            y_cols=self.y_cols,
             n_jobs=self.n_jobs,
             memory=self.memory,
             preview_sample_size=self.preview_sample_size,
@@ -212,9 +219,10 @@ class Pipe:
         pipeline = self.get_pipeline(False)
         if not pipeline.steps:
             return df, []
+        y = s.select(df, self.y_cols)
         for step_name, transformer in pipeline.steps:
             try:
-                df = transformer.fit_transform(df)
+                df = transformer.fit_transform(df, y)
             except Exception as e:
                 e_repr = "\n    ".join(traceback.format_exception_only(e))
                 raise RuntimeError(
@@ -244,6 +252,39 @@ class Pipe:
         if last_step_only:
             data = s.select(data, last_step_cols)
         return data
+
+    def get_x(self):
+        if self.input_data is None:
+            return None
+        return s.select(self.input_data, s.all() - self.y_cols)
+
+    def get_x_train(self):
+        x = self.get_x()
+        x_train, _ = train_test_split(x, random_state=self.random_seed)
+        return x_train
+
+    def get_x_test(self):
+        x = self.get_x()
+        _, x_test = train_test_split(x, random_state=self.random_seed)
+        return x_test
+
+    def get_y(self):
+        if self.input_data is None or self.y_cols is None:
+            return None
+        y = s.select(self.input_data, s.all() & self.y_cols)
+        if sbd.shape(y)[1] == 1:
+            y = sbd.col(y, sbd.column_names(y)[0])
+        return y
+
+    def get_y_train(self):
+        y = self.get_y()
+        y_train, _ = train_test_split(y, random_state=self.random_seed)
+        return y_train
+
+    def get_y_test(self):
+        y = self.get_y()
+        _, y_test = train_test_split(y, random_state=self.random_seed)
+        return y_test
 
     def get_skrubview_report(
         self, order_by=None, sampling_method="random", n=None, last_step_only=False
