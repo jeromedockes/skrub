@@ -1,6 +1,7 @@
 import dataclasses
 import io
 import itertools
+import re
 import traceback
 from typing import Any
 
@@ -11,7 +12,6 @@ from sklearn.pipeline import Pipeline
 from . import _dataframe as sbd
 from . import _join_utils
 from . import selectors as s
-from ._add_estimator_methods import camel_to_snake
 from ._parallel_plot import DEFAULT_COLORSCALE, plot_parallel_coord
 from ._select_cols import Drop
 from ._tuning import (
@@ -39,6 +39,16 @@ __all__ = [
     "choose_float",
     "choose_int",
 ]
+
+
+def _camel_to_snake(name):
+    name = re.sub(
+        r"(.)([A-Z][a-z0-9]+)",
+        r"\1_\2",
+        name,
+    )
+    name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
+    return name.lower()
 
 
 @dataclasses.dataclass
@@ -84,7 +94,7 @@ def _get_name(step):
     return (
         getattr(step, "name", None)
         or getattr(step.estimator, "name", None)
-        or camel_to_snake(unwrap_first(step.estimator).__class__.__name__)
+        or _camel_to_snake(unwrap_first(step.estimator).__class__.__name__)
     )
 
 
