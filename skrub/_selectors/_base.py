@@ -1,9 +1,5 @@
-from typing import Any
-
 from .. import _dataframe as sbd
-from .._add_estimator_methods import add_estimator_methods
 from .._dispatch import dispatch
-from .._fluent_classes import fluent_class
 from .._utils import repr_args
 
 
@@ -48,7 +44,6 @@ def select(df, selector):
     return _select_col_names(df, make_selector(selector).expand(df))
 
 
-@add_estimator_methods
 class Selector:
     def _matches(self, col):
         raise NotImplementedError()
@@ -115,28 +110,6 @@ class Selector:
             keep_original=keep_original,
             rename_columns=rename_columns,
             cols=self,
-        )
-
-    def use(self, estimator):
-        return PipeStep(cols=self, estimator=estimator)
-
-
-@fluent_class
-class PipeStep:
-    cols_: Selector
-    estimator_: Any
-    name_: str | None = None
-    keep_original_: bool = False
-    rename_columns_: str = "{}"
-
-    def _make_transformer(self, estimator=None, n_jobs=1):
-        if estimator is None:
-            estimator = self.estimator_
-        return self.cols_.make_transformer(
-            estimator,
-            keep_original=self.keep_original_,
-            rename_columns=self.rename_columns_,
-            n_jobs=n_jobs,
         )
 
 

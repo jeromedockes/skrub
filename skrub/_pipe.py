@@ -1,6 +1,8 @@
+import dataclasses
 import io
 import itertools
 import traceback
+from typing import Any
 
 from sklearn.base import clone
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, train_test_split
@@ -12,7 +14,7 @@ from . import selectors as s
 from ._add_estimator_methods import camel_to_snake
 from ._parallel_plot import DEFAULT_COLORSCALE, plot_parallel_coord
 from ._select_cols import Drop
-from ._tuning import (  # TODO only choose_from or pick_from will remain
+from ._tuning import (
     Choice,
     NumericChoice,
     Optional,
@@ -24,7 +26,6 @@ from ._tuning import (  # TODO only choose_from or pick_from will remain
     grid_description,
     optional,
     params_description,
-    pick_from,
     set_params_to_first,
     unwrap,
     unwrap_first,
@@ -34,11 +35,29 @@ from ._tuning import (  # TODO only choose_from or pick_from will remain
 __all__ = [
     "Pipe",
     "choose_from",
-    "pick_from",
     "optional",
     "choose_float",
     "choose_int",
 ]
+
+
+@dataclasses.dataclass
+class PipeStep:
+    estimator: Any
+    cols: s.Selector
+    name: str | None = None
+    keep_original: bool = False
+    rename_columns: str = "{}"
+
+    def _make_transformer(self, estimator=None, n_jobs=1):
+        if estimator is None:
+            estimator = self.estimator
+        return self.cols.make_transformer(
+            estimator,
+            keep_original=self.keep_original,
+            rename_columns=self.rename_columns,
+            n_jobs=n_jobs,
+        )
 
 
 class NamedParamPipeline(Pipeline):
@@ -63,20 +82,10 @@ def _pick_names(suggested_names):
 
 def _get_name(step):
     return (
-        getattr(step, "name_", None)
-        or getattr(step.estimator_, "name_", None)
-        or camel_to_snake(unwrap_first(step.estimator_).__class__.__name__)
+        getattr(step, "name", None)
+        or getattr(step.estimator, "name", None)
+        or camel_to_snake(unwrap_first(step.estimator).__class__.__name__)
     )
-
-
-def _to_step(obj):
-    if not hasattr(obj, "estimator_"):
-        obj = s.all().use(obj)
-    if isinstance(obj.estimator_, Choice):
-        obj = obj._with_params(estimator=obj.estimator_.map_values(_check_passthrough))
-    else:
-        obj = obj._with_params(estimator=_check_passthrough(obj.estimator_))
-    return obj
 
 
 def _is_passthrough(estimator):
@@ -100,7 +109,7 @@ def _check_estimator(estimator, step, n_jobs):
 
 
 def _to_estimator(step, n_jobs):
-    estimator = step.estimator_
+    estimator = step.estimator
     if isinstance(estimator, Choice):
         return estimator.map_values(lambda v: _check_estimator(v, step, n_jobs))
     return _check_estimator(estimator, step, n_jobs)
@@ -129,7 +138,13 @@ class Pipe:
         if self.y_cols is None:
             self._steps = []
         else:
-            self._steps = [(s.all() & self.y_cols).use(Drop()).name("drop_y_columns")]
+            self._steps = [
+                PipeStep(
+                    estimator=Drop(),
+                    cols=(s.all() & self.y_cols),
+                    name="drop_y_columns",
+                )
+            ]
 
     def _with_prepared_steps(self, steps):
         new = Pipe(
@@ -146,7 +161,7 @@ class Pipe:
     def _has_predictor(self):
         if not self._steps:
             return False
-        return hasattr(unwrap_first(self._steps[-1].estimator_), "predict")
+        return hasattr(unwrap_first(self._steps[-1].estimator), "predict")
 
     def _get_step_names(self):
         suggested_names = [_get_name(step) for step in self._steps]
@@ -193,16 +208,6 @@ class Pipe:
         # TODO make rs_params explicit
         grid = self.get_param_grid()
         return RandomizedSearchCV(self.get_pipeline(), grid, **rs_params)
-
-    def chain(self, *steps):
-        if self._has_predictor():
-            pred_name = self._get_step_names()[-1]
-            raise ValueError(
-                f"This pipeline already has a final predictor: {pred_name!r}. "
-                "Therefore we cannot add more steps. "
-                "You can remove the final step with '.pop()'."
-            )
-        return self._with_prepared_steps(self._steps + list(map(_to_step, steps)))
 
     def pop(self):
         if not self._steps:
@@ -345,11 +350,11 @@ class Pipe:
         for params in fitted_search.cv_results_["params"]:
             row = {}
             for param_id, param in params.items():
-                choice_name = param.in_choice_ or param_id
-                value = param.name_ or param.value_
+                choice_name = param.in_choice or param_id
+                value = param.name or param.value
                 row[choice_name] = value
                 param_names.add(choice_name)
-                if getattr(param, "is_from_log_scale_", False):
+                if getattr(param, "is_from_log_scale", False):
                     log_scale_columns.add(choice_name)
             all_rows.append(row)
 
@@ -428,7 +433,6 @@ class Pipe:
                 "    You can remove steps from the pipeline with `.pop()`."
             )
 
-    # Alternative API 1
     def use(
         self,
         estimator,
@@ -437,41 +441,53 @@ class Pipe:
         keep_original=False,
         rename_columns="{}",
     ):
-        return self.chain(
-            s.make_selector(cols)
-            .use(estimator)
-            .name(name)
-            .keep_original(keep_original)
-            .rename_columns(rename_columns)
+        if self._has_predictor():
+            pred_name = self._get_step_names()[-1]
+            raise ValueError(
+                f"This pipeline already has a final predictor: {pred_name!r}. "
+                "Therefore we cannot add more steps. "
+                "You can remove the final step with '.pop()'."
+            )
+        if isinstance(estimator, Choice):
+            estimator = estimator.map_values(_check_passthrough)
+        else:
+            estimator = _check_passthrough(estimator)
+        step = PipeStep(
+            estimator=estimator,
+            cols=s.make_selector(cols),
+            name=name,
+            keep_original=keep_original,
+            rename_columns=rename_columns,
         )
+        return self._with_prepared_steps(self._steps + [step])
 
 
 def _describe_choice(choice, buf):
     buf.write("    choose estimator from:\n")
     dash = "        - "
-    for outcome in choice.outcomes_:
-        if outcome.name_ is not None:
-            name = f"{outcome.name_} = "
+    for outcome in choice.outcomes:
+        if outcome.name is not None:
+            name = f"{outcome.name} = "
         else:
             name = ""
-        write_indented(f"{dash}{name}", f"{outcome.value_!r}\n", buf)
+        write_indented(f"{dash}{name}", f"{outcome.value!r}\n", buf)
 
 
 def _describe_pipeline(named_steps):
     buf = io.StringIO()
     for name, step in named_steps:
         buf.write(f"{name}:\n")
-        if isinstance(step.estimator_, Optional):
+        if isinstance(step.estimator, Optional):
             buf.write("    OPTIONAL STEP\n")
-        buf.write(f"    cols: {step.cols_}\n")
-        if isinstance(step.estimator_, Choice) and not isinstance(
-            step.estimator_, Optional
+        buf.write(f"    cols: {step.cols}\n")
+        if isinstance(step.estimator, Choice) and not isinstance(
+            step.estimator, Optional
         ):
-            _describe_choice(step.estimator_, buf)
+            _describe_choice(step.estimator, buf)
         else:
             write_indented(
                 "    estimator: ",
-                f"{unwrap_first(step.estimator_)!r}\n",
+                f"{unwrap_first(step.estimator)!r}\n",
                 buf,
             )
     return buf.getvalue()
@@ -481,7 +497,7 @@ def _get_all_param_names(grid):
     names = {}
     for subgrid in grid:
         for k, v in subgrid.items():
-            if v.name_ is not None:
-                k = v.name_
+            if v.name is not None:
+                k = v.name
             names[k] = None
     return list(names)
