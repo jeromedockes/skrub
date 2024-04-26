@@ -83,7 +83,7 @@ class Selector:
     def __rxor__(self, other):
         return XOr(other, self)
 
-    def make_transformer(
+    def wrap_transformer(
         self,
         transformer,
         keep_original=False,

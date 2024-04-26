@@ -33,7 +33,7 @@ from ._tuning import (
 )
 
 __all__ = [
-    "Pipe",
+    "Recipe",
     "choose_from",
     "optional",
     "choose_float",
@@ -52,7 +52,7 @@ def _camel_to_snake(name):
 
 
 @dataclasses.dataclass
-class PipeStep:
+class Step:
     estimator: Any
     cols: s.Selector
     name: str | None = None
@@ -62,7 +62,7 @@ class PipeStep:
     def _make_transformer(self, estimator=None, n_jobs=1):
         if estimator is None:
             estimator = self.estimator
-        return self.cols.make_transformer(
+        return self.cols.wrap_transformer(
             estimator,
             keep_original=self.keep_original,
             rename_columns=self.rename_columns,
@@ -125,7 +125,7 @@ def _to_estimator(step, n_jobs):
     return _check_estimator(estimator, step, n_jobs)
 
 
-class Pipe:
+class Recipe:
     def __init__(
         self,
         input_data=None,
@@ -149,7 +149,7 @@ class Pipe:
             self._steps = []
         else:
             self._steps = [
-                PipeStep(
+                Step(
                     estimator=Drop(),
                     cols=(s.all() & self.y_cols),
                     name="drop_y_columns",
@@ -157,7 +157,7 @@ class Pipe:
             ]
 
     def _with_prepared_steps(self, steps):
-        new = Pipe(
+        new = Recipe(
             input_data=self.input_data,
             y_cols=self.y_cols,
             n_jobs=self.n_jobs,
@@ -301,7 +301,7 @@ class Pipe:
         _, y_test = train_test_split(y, random_state=self.random_seed)
         return y_test
 
-    def get_skrubview_report(
+    def get_report(
         self, order_by=None, sampling_method="random", n=None, last_step_only=False
     ):
         try:
@@ -443,7 +443,7 @@ class Pipe:
                 "    You can remove steps from the pipeline with `.pop()`."
             )
 
-    def use(
+    def apply(
         self,
         estimator,
         cols=s.all(),
@@ -462,7 +462,7 @@ class Pipe:
             estimator = estimator.map_values(_check_passthrough)
         else:
             estimator = _check_passthrough(estimator)
-        step = PipeStep(
+        step = Step(
             estimator=estimator,
             cols=s.make_selector(cols),
             name=name,

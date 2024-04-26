@@ -255,14 +255,14 @@ class DatetimeEncoder(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         """
         steps = [CheckInputDataFrame()]
         if self.parse_string_columns:
-            self._to_datetime = s.all().make_transformer(ToDatetime())
+            self._to_datetime = s.all().wrap_transformer(ToDatetime())
             steps.append(self._to_datetime)
         column_encoder = EncodeDatetime(
             resolution=self.resolution,
             add_day_of_the_week=self.add_day_of_the_week,
             add_total_seconds=self.add_total_seconds,
         )
-        self._encoder = s.all().make_transformer(column_encoder)
+        self._encoder = s.all().wrap_transformer(column_encoder)
         steps.append(self._encoder)
         self.pipeline_ = make_pipeline(*steps)
         output = self.pipeline_.fit_transform(X)

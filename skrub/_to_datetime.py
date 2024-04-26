@@ -96,7 +96,7 @@ def to_datetime(df, format=None):
 @to_datetime.specialize("polars", argument_type="DataFrame")
 def _to_datetime_dataframe(df, format=None):
     return (
-        s.all().make_transformer(ToDatetime(datetime_format=format)).fit_transform(df)
+        s.all().wrap_transformer(ToDatetime(datetime_format=format)).fit_transform(df)
     )
 
 

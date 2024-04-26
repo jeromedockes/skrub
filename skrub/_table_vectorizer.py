@@ -63,11 +63,11 @@ def _make_table_vectorizer_pipeline(
     cols = s.all() - passthrough
     cleaning_steps = [
         CheckInputDataFrame(),
-        cols.make_transformer(PandasConvertDTypes(), n_jobs=n_jobs),
-        cols.make_transformer(CleanNullStrings(), n_jobs=n_jobs),
-        cols.make_transformer(ToDatetime(), n_jobs=n_jobs),
-        cols.make_transformer(ToNumeric(), n_jobs=n_jobs),
-        cols.make_transformer(ToCategorical(cardinality_threshold - 1), n_jobs=n_jobs),
+        cols.wrap_transformer(PandasConvertDTypes(), n_jobs=n_jobs),
+        cols.wrap_transformer(CleanNullStrings(), n_jobs=n_jobs),
+        cols.wrap_transformer(ToDatetime(), n_jobs=n_jobs),
+        cols.wrap_transformer(ToNumeric(), n_jobs=n_jobs),
+        cols.wrap_transformer(ToCategorical(cardinality_threshold - 1), n_jobs=n_jobs),
     ]
     low_cardinality = s.categorical() & s.cardinality_below(cardinality_threshold)
     feature_extraction_steps = []
@@ -78,13 +78,13 @@ def _make_table_vectorizer_pipeline(
         (cols & (s.string() | s.categorical()), high_cardinality_transformer),
     ]:
         feature_extraction_steps.append(
-            (selector - created_by(*feature_extraction_steps)).make_transformer(
+            (selector - created_by(*feature_extraction_steps)).wrap_transformer(
                 transformer, n_jobs=n_jobs, columnwise=True
             )
         )
     remainder = cols - created_by(*feature_extraction_steps)
     remainder_steps = [
-        remainder.make_transformer(
+        remainder.wrap_transformer(
             remainder_transformer, n_jobs=n_jobs, columnwise=True
         ),
     ]
