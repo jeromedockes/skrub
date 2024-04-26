@@ -53,7 +53,7 @@ class Choice(Sequence, BaseChoice):
         return out, _with_fields(self, outcomes=rest)
 
     def map_values(self, func):
-        outcomes = [out.value(func(out.value)) for out in self.outcomes]
+        outcomes = [_with_fields(out, value=func(out.value)) for out in self.outcomes]
         return _with_fields(self, outcomes=outcomes)
 
     def __repr__(self):

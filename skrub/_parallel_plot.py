@@ -42,8 +42,8 @@ def get_parallel_coord_data(cv_results, metadata, colorscale=DEFAULT_COLORSCALE)
 def _prepare_column(col, is_log_scale):
     if not pd.api.types.is_numeric_dtype(col):
         return _prepare_obj_column(col)
-    if is_log_scale:
-        return _prepare_log_scale_column(col)
+    if is_log_scale or col.isna().any():
+        return _prepare_numeric_column(col, is_log_scale)
     return {"label": col.name, "values": col.to_numpy()}
 
 
@@ -58,14 +58,22 @@ def _prepare_obj_column(col):
     }
 
 
-def _prepare_log_scale_column(col):
-    vals = np.log(col.to_numpy())
-    min_val, max_val = vals.min(), vals.max()
-    tickvals = np.linspace(min_val, max_val, 10)
+def _prepare_numeric_column(col, log_scale):
+    vals = col.to_numpy()
+    if log_scale:
+        vals = np.log(vals)
+    min_val, max_val = np.nanmin(vals), np.nanmax(vals)
+    tickvals = np.linspace(min_val, max_val, 10).tolist()
     if pd.api.types.is_integer_dtype(col):
         ticktext = [str(int(np.round(np.exp(v)))) for v in tickvals]
     else:
-        ticktext = list(map("{:.2g}".format, np.exp(tickvals)))
+        ticktext = list(
+            map("{:.2g}".format, np.exp(tickvals) if log_scale else tickvals)
+        )
+    if np.isnan(vals).any():
+        tickvals = [min_val - (max_val - min_val) / 10] + tickvals
+        ticktext = ["NaN"] + ticktext
+        vals = np.where(~np.isnan(vals), vals, tickvals[0])
     return {
         "label": col.name,
         "values": vals,
