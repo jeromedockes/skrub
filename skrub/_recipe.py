@@ -252,17 +252,20 @@ class Recipe:
         pipeline = self.get_pipeline(False)
         if not pipeline.steps:
             return df, []
-        y = s.select(df, self.y_cols)
+        y = None if self.y_cols is None else s.select(df, self.y_cols)
         for step_name, transformer in pipeline.steps:
-            try:
-                df = transformer.fit_transform(df, y)
-            except Exception as e:
-                e_repr = "\n    ".join(traceback.format_exception_only(e))
-                raise RuntimeError(
-                    f"Transformation failed at step '{step_name}'.\n"
-                    f"Input data for this step:\n{df}\n"
-                    f"Error message:\n    {e_repr}"
-                ) from e
+            if not _is_passthrough(transformer):
+                try:
+                    df = transformer.fit_transform(df, y)
+                except Exception as e:
+                    e_repr = "\n    ".join(traceback.format_exception_only(e))
+                    raise RuntimeError(
+                        f"Transformation failed at step '{step_name}'.\n"
+                        f"Input data for this step:\n{df}\n"
+                        f"Error message:\n    {e_repr}"
+                    ) from e
+        if _is_passthrough(pipeline.steps[-1][1]):
+            return df, []
         return df, pipeline.steps[-1][1].created_outputs_
 
     def _random_sample(self, n):
