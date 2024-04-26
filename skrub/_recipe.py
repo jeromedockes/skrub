@@ -222,9 +222,27 @@ class Recipe:
     def pop(self):
         if not self._steps:
             return None
+        if (len(self._steps) == 1) and (self.y_cols is not None):
+            return None
         estimator = _to_estimator(self._steps[-1], self.n_jobs)
         self._steps = self._steps[:-1]
         return estimator
+
+    def truncated(self, before_step=None):
+        if before_step is None:
+            before_step = 0 if self.y_cols is None else 1
+        if isinstance(before_step, str):
+            names = self._get_step_names()
+            if before_step not in names:
+                raise ValueError(
+                    f"{before_step!r} is not one of the step names: {names}."
+                )
+            idx = names.index(before_step)
+            return self.truncated(idx)
+        steps = self._steps[:before_step]
+        if (self.y_cols is not None) and (not steps):
+            raise ValueError("Cannot truncate step 0 which separates X from y.")
+        return self._with_prepared_steps(steps)
 
     def _transform_preview(self, sampling_method, n=None):
         if self.input_data is None:
@@ -317,7 +335,14 @@ class Recipe:
             data = s.select(
                 data, last_step_cols + ([] if order_by is None else [order_by])
             )
-        return skrubview.Report(data, order_by=order_by)
+        else:
+            column_filters = {
+                "Created or modified by last step": last_step_cols,
+                "Not created or modified by last step": (
+                    ~s.cols(*last_step_cols)
+                ).expand(data),
+            }
+        return skrubview.Report(data, order_by=order_by, column_filters=column_filters)
 
     def get_param_grid_description(self):
         return grid_description(self.get_param_grid())
@@ -436,11 +461,9 @@ class Recipe:
             return f"{pipe_description}\nSample of transformed data:\n{data_repr}"
         except Exception as e:
             return (
-                f"{pipe_description}\n"
-                f"{e}Note:\n"
-                "    Use `.sample()` to trigger the error again "
-                "and see the full traceback.\n"
-                "    You can remove steps from the pipeline with `.pop()`."
+                f"{pipe_description}\n{e}Note:\n    Use `.sample()` to trigger the"
+                " error again and see the full traceback.\n    You can remove steps"
+                " from the pipeline with `.pop()` or `.truncated(step)`."
             )
 
     def apply(
@@ -456,7 +479,7 @@ class Recipe:
             raise ValueError(
                 f"This pipeline already has a final predictor: {pred_name!r}. "
                 "Therefore we cannot add more steps. "
-                "You can remove the final step with '.pop()'."
+                "You can remove the final step with '.pop()' or '.truncated(-1)'."
             )
         if isinstance(estimator, Choice):
             estimator = estimator.map_values(_check_passthrough)
