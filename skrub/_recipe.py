@@ -129,7 +129,7 @@ class Recipe:
     def __init__(
         self,
         input_data=None,
-        y_cols=None,
+        y_cols=(),
         n_jobs=None,
         memory=None,
         preview_sample_size=2000,
@@ -145,16 +145,13 @@ class Recipe:
         self.memory = memory
         self.preview_sample_size = preview_sample_size
         self.random_seed = random_seed
-        if self.y_cols is None:
-            self._steps = []
-        else:
-            self._steps = [
-                Step(
-                    estimator=Drop(),
-                    cols=(s.all() & self.y_cols),
-                    name="drop_y_columns",
-                )
-            ]
+        self._steps = [
+            Step(
+                estimator=Drop(),
+                cols=(s.all() & self.y_cols),
+                name="_drop_y_columns",
+            )
+        ]
 
     def _with_prepared_steps(self, steps):
         new = Recipe(
@@ -219,18 +216,9 @@ class Recipe:
         grid = self.get_param_grid()
         return RandomizedSearchCV(self.get_pipeline(), grid, **rs_params)
 
-    def pop(self):
-        if not self._steps:
-            return None
-        if (len(self._steps) == 1) and (self.y_cols is not None):
-            return None
-        estimator = _to_estimator(self._steps[-1], self.n_jobs)
-        self._steps = self._steps[:-1]
-        return estimator
-
     def truncated(self, before_step=None):
         if before_step is None:
-            before_step = 0 if self.y_cols is None else 1
+            return self.truncated(1)
         if isinstance(before_step, str):
             names = self._get_step_names()
             if before_step not in names:
@@ -240,7 +228,7 @@ class Recipe:
             idx = names.index(before_step)
             return self.truncated(idx)
         steps = self._steps[:before_step]
-        if (self.y_cols is not None) and (not steps):
+        if not steps:
             raise ValueError("Cannot truncate step 0 which separates X from y.")
         return self._with_prepared_steps(steps)
 
@@ -252,7 +240,7 @@ class Recipe:
         pipeline = self.get_pipeline(False)
         if not pipeline.steps:
             return df, []
-        y = None if self.y_cols is None else s.select(df, self.y_cols)
+        y = s.select(df, self.y_cols)
         for step_name, transformer in pipeline.steps:
             if not _is_passthrough(transformer):
                 try:
@@ -305,7 +293,7 @@ class Recipe:
         return x_test
 
     def get_y(self):
-        if self.input_data is None or self.y_cols is None:
+        if self.input_data is None:
             return None
         y = s.select(self.input_data, s.all() & self.y_cols)
         if sbd.shape(y)[1] == 1:
@@ -466,7 +454,7 @@ class Recipe:
             return (
                 f"{pipe_description}\n{e}Note:\n    Use `.sample()` to trigger the"
                 " error again and see the full traceback.\n    You can remove steps"
-                " from the pipeline with `.pop()` or `.truncated(step)`."
+                " from the pipeline with `.truncated(step)`."
             )
 
     def apply(
@@ -482,7 +470,7 @@ class Recipe:
             raise ValueError(
                 f"This pipeline already has a final predictor: {pred_name!r}. "
                 "Therefore we cannot add more steps. "
-                "You can remove the final step with '.pop()' or '.truncated(-1)'."
+                "You can remove the final step with '.truncated(-1)'."
             )
         if isinstance(estimator, Choice):
             estimator = estimator.map_values(_check_passthrough)
