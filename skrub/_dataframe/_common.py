@@ -53,6 +53,8 @@ __all__ = [
     "is_bool",
     "is_numeric",
     "to_numeric",
+    "is_integer",
+    "is_float",
     "to_float32",
     "is_string",
     "to_string",
@@ -64,8 +66,11 @@ __all__ = [
     #
     # Inspecting, selecting and modifying values
     #
+    "all",
+    "any",
     "is_in",
     "is_null",
+    "has_nulls",
     "drop_nulls",
     "n_unique",
     "unique",
@@ -208,6 +213,8 @@ def to_numpy(obj):
 
 @to_numpy.specialize("pandas", argument_type="Column")
 def _to_numpy_pandas(obj):
+    if pd.api.types.is_numeric_dtype(obj) and obj.isna().any():
+        obj = obj.astype(float)
     return obj.to_numpy()
 
 
@@ -235,11 +242,11 @@ def _to_pandas_polars(obj):
 def make_dataframe_like(df, data):
     """Create a dataframe from `data` using the module of `df`.
 
-    data can either be a dictionary {column_name: column} or a list of columns
+    `data` can either be a dictionary {column_name: column} or a list of columns
     (with names).
 
-    df can either be a dataframe or a column, and it is only used for dispatch,
-    ie to determine if the resulting dataframe should be a pandas or polars
+    `df` can either be a dataframe or a column, and it is only used for dispatch,
+    i.e. to determine if the resulting dataframe should be a pandas or polars
     dataframe.
     """
     raise NotImplementedError()
@@ -557,6 +564,36 @@ def _to_numeric_polars(column, dtype=None, strict=True):
 
 
 @dispatch
+def is_integer(column):
+    raise NotImplementedError()
+
+
+@is_integer.specialize("pandas")
+def _is_integer_pandas(column):
+    return pd.api.types.is_integer_dtype(column)
+
+
+@is_integer.specialize("polars")
+def _is_integer_polars(column):
+    return column.dtype.is_integer()
+
+
+@dispatch
+def is_float(column):
+    raise NotImplementedError()
+
+
+@is_float.specialize("pandas")
+def _is_float_pandas(column):
+    return pd.api.types.is_float_dtype(column)
+
+
+@is_float.specialize("polars")
+def _is_float_polars(column):
+    return column.dtype.is_float()
+
+
+@dispatch
 def to_float32(column):
     raise NotImplementedError()
 
@@ -700,6 +737,36 @@ def _to_categorical_polars(column):
 
 
 @dispatch
+def all(column):
+    raise NotImplementedError()
+
+
+@all.specialize("pandas")
+def _all_pandas(column):
+    return column.all()
+
+
+@all.specialize("polars")
+def _all_polars(column):
+    return column.all()
+
+
+@dispatch
+def any(column):
+    raise NotImplementedError()
+
+
+@any.specialize("pandas")
+def _any_pandas(column):
+    return column.any()
+
+
+@any.specialize("polars")
+def _any_polars(column):
+    return column.any()
+
+
+@dispatch
 def is_in(column, values):
     raise NotImplementedError()
 
@@ -729,6 +796,10 @@ def _is_null_pandas(column):
 @is_null.specialize("polars")
 def _is_null_polars(column):
     return column.is_null()
+
+
+def has_nulls(column):
+    return any(is_null(column))
 
 
 @dispatch

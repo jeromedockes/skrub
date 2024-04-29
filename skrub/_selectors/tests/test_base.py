@@ -14,14 +14,17 @@ def test_repr():
     >>> s.cols("ID", "Name") & "ID"
     (cols('ID', 'Name') & cols('ID'))
     >>> s.filter_names(lambda n: 'a' in n) ^ s.filter(lambda c: c[2] == 3)
-    (filter_names(<function <lambda> at ...>) ^ filter(<function <lambda> at ...>))
+    (filter_names(<lambda>) ^ filter(<lambda>))
     >>> ~s.all()
     (~all())
     >>> s.Filter(lambda c, x: c[2] == x, args=(3,), name='my_filter')
     my_filter(3)
     >>> s.Filter(lambda c, x: c[2] == x, args=(3,), selector_repr='my_filter()')
     my_filter()
-
+    >>> s.NameFilter(lambda c_n, n: c_n.lower() == n,
+    ...              args=('col',),
+    ...              selector_repr='lower_check()')
+    lower_check()
     """
 
 
@@ -31,6 +34,13 @@ def test_make_selector():
     assert s.make_selector(col := "one two").columns == [col]
     with pytest.raises(ValueError, match="Selector not understood"):
         s.make_selector(0)
+
+
+def test_select(df_module):
+    df = df_module.example_dataframe
+    df_module.assert_frame_equal(
+        s.select(df, s.cols("float-col", "str-col")), df[["float-col", "str-col"]]
+    )
 
 
 def test_all(df_module):
@@ -84,13 +94,13 @@ def test_filter(df_module):
     df = df_module.example_dataframe
     expanded = s.filter(lambda c: 4.5 in sbd.to_list(c)).expand(df)
     assert expanded == ["float-col"]
-    expanded = s.filter(lambda c, v: v in sbd.to_list(c), args=(4.5,)).expand(df)
+    expanded = s.filter(lambda c, v: v in sbd.to_list(c), 4.5).expand(df)
     assert expanded == ["float-col"]
 
 
 def test_filter_names(df_module):
     df = df_module.example_dataframe
-    expanded = s.filter_names(str.endswith, ("t-col",)).expand(df)
+    expanded = s.filter_names(str.endswith, "t-col").expand(df)
     assert expanded == ["int-col", "float-col"]
 
 

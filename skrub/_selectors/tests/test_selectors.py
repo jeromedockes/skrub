@@ -19,7 +19,10 @@ def test_repr():
     cardinality_below(30)
     >>> s.string() | s.any_date() | s.categorical()
     ((string() | any_date()) | categorical())
-
+    >>> s.float() & s.integer()
+    (float() & integer())
+    >>> s.has_nulls()
+    has_nulls()
     """
 
 
@@ -51,8 +54,16 @@ def test_dtype_selectors(df_module):
         "float-col",
         "bool-col",
     ]
+    assert s.integer().expand(df) == ["int-col"]
+    assert s.float().expand(df) == ["float-col"]
     assert s.string().expand(df) == ["str-col"]
     assert s.categorical().expand(df) == ["cat-col"]
+    if df_module.name == "polars":
+        assert s.any_date().expand(df) == ["datetime-col", "date-col"]
+    else:
+        # pandas doesn't have a 'date' dtype, only datetime
+        assert df_module.name == "pandas"
+        assert s.any_date().expand(df) == ["datetime-col"]
 
 
 def test_cardinality_below(df_module, monkeypatch):
@@ -66,6 +77,11 @@ def test_cardinality_below(df_module, monkeypatch):
 
     monkeypatch.setattr(sbd, "n_unique", bad_n_unique)
     assert s.cardinality_below(5).expand(df) == []
+
+
+def test_has_nulls(df_module):
+    df = df_module.make_dataframe(dict(a=[0, 1, 2], b=[0, None, 2], c=["a", "b", None]))
+    assert s.has_nulls().expand(df) == ["b", "c"]
 
 
 @pytest.mark.parametrize("name", s.__all__)
@@ -94,8 +110,8 @@ def test_pickling_selectors_with_args(df_module):
     # pickling selectors should be fine ...
     df = df_module.example_dataframe
     for selector in [
-        s.filter(_filt_col, args=("int-",)),
-        s.filter_names(_filt_col_name, args=("int-",)),
+        s.filter(_filt_col, "int-"),
+        s.filter_names(_filt_col_name, "int-"),
         s.glob("int-*"),
         s.regex("^int-.*$"),
         s.cardinality_below(4),
