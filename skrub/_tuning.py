@@ -92,7 +92,7 @@ def choose_from(outcomes, name=None):
 class Optional(Choice):
     def __repr__(self):
         args = _utils.repr_args(
-            (unwrap_first(self),), {"name": self.name}, defaults={"name": None}
+            (unwrap_default(self),), {"name": self.name}, defaults={"name": None}
         )
         return f"optional({args})"
 
@@ -244,7 +244,7 @@ class Placeholder:
         return "..."
 
 
-def unwrap_first(obj):
+def unwrap_default(obj):
     if isinstance(obj, BaseChoice):
         return obj.default().value
     if isinstance(obj, Outcome):
@@ -262,13 +262,13 @@ def contains_choice(estimator):
     return isinstance(estimator, Choice) or bool(_find_param_choices(estimator))
 
 
-def set_params_to_first(estimator):
-    estimator = unwrap_first(estimator)
+def set_params_to_default(estimator):
+    estimator = unwrap_default(estimator)
     if not hasattr(estimator, "set_params"):
         return estimator
     estimator = clone(estimator)
     while param_choices := _find_param_choices(estimator):
-        params = {k: unwrap_first(v) for k, v in param_choices.items()}
+        params = {k: unwrap_default(v) for k, v in param_choices.items()}
         estimator.set_params(**params)
     return estimator
 

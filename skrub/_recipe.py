@@ -25,9 +25,9 @@ from ._tuning import (
     grid_description,
     optional,
     params_description,
-    set_params_to_first,
+    set_params_to_default,
     unwrap,
-    unwrap_first,
+    unwrap_default,
     write_indented,
 )
 
@@ -93,7 +93,7 @@ def _get_name(step):
     return (
         getattr(step, "name", None)
         or getattr(step.estimator, "name", None)
-        or _camel_to_snake(unwrap_first(step.estimator).__class__.__name__)
+        or _camel_to_snake(unwrap_default(step.estimator).__class__.__name__)
     )
 
 
@@ -167,7 +167,7 @@ class Recipe:
     def _has_predictor(self):
         if not self._steps:
             return False
-        return hasattr(unwrap_first(self._steps[-1].estimator), "predict")
+        return hasattr(unwrap_default(self._steps[-1].estimator), "predict")
 
     def _get_step_names(self):
         suggested_names = [_get_name(step) for step in self._steps]
@@ -178,7 +178,7 @@ class Recipe:
 
     def _get_default_estimators(self):
         return [
-            set_params_to_first(unwrap_first(estimator))
+            set_params_to_default(unwrap_default(estimator))
             for estimator in self._get_estimators()
         ]
 
@@ -510,7 +510,7 @@ def _describe_pipeline(named_steps):
         else:
             write_indented(
                 "    estimator: ",
-                f"{unwrap_first(step.estimator)!r}\n",
+                f"{unwrap_default(step.estimator)!r}\n",
                 buf,
             )
     return buf.getvalue()
