@@ -245,18 +245,14 @@ class Placeholder:
 
 
 def unwrap_first(obj):
-    if isinstance(obj, Choice):
-        return obj.outcomes[0].value
-    if isinstance(obj, BaseNumericChoice):
-        return obj.rvs(random_state=0).value
+    if isinstance(obj, BaseChoice):
+        return obj.default().value
     if isinstance(obj, Outcome):
         return obj.value
     return obj
 
 
 def unwrap(obj):
-    if isinstance(obj, Choice):
-        return [outcome.value for outcome in obj.outcomes]
     if isinstance(obj, Outcome):
         return obj.value
     return obj
