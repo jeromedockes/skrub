@@ -130,8 +130,12 @@ def _repr_numeric_choice(choice):
     return f"choose_float({args})"
 
 
+class BaseNumericChoice(BaseChoice):
+    pass
+
+
 @dataclasses.dataclass
-class NumericChoice(BaseChoice):
+class NumericChoice(BaseNumericChoice):
     low: float
     high: float
     log: bool
@@ -156,7 +160,7 @@ class NumericChoice(BaseChoice):
 
 
 @dataclasses.dataclass
-class DiscretizedNumericChoice(Sequence):
+class DiscretizedNumericChoice(BaseNumericChoice, Sequence):
     low: float
     high: float
     n_steps: int
@@ -223,7 +227,7 @@ class Placeholder:
 def unwrap_first(obj):
     if isinstance(obj, Choice):
         return obj.outcomes[0].value
-    if isinstance(obj, NumericChoice):
+    if isinstance(obj, BaseNumericChoice):
         return obj.rvs(random_state=0).value
     if isinstance(obj, Outcome):
         return obj.value
@@ -353,7 +357,7 @@ def grid_description(grid):
         for k, v in subgrid.items():
             if v.name is not None:
                 k = v.name
-            if isinstance(v, NumericChoice):
+            if isinstance(v, BaseNumericChoice):
                 # no need to repeat the name (already in the key) hence name(None)
                 write_indented(
                     f"{prefix}{k!r}: ", f"{_with_fields(v, name=None)}\n", buf

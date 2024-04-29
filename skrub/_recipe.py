@@ -3,7 +3,7 @@ import io
 import itertools
 import re
 import traceback
-from typing import Any
+from typing import Any, Sequence
 
 from sklearn.base import clone
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, train_test_split
@@ -16,7 +16,6 @@ from ._parallel_plot import DEFAULT_COLORSCALE, plot_parallel_coord
 from ._select_cols import Drop
 from ._tuning import (
     Choice,
-    NumericChoice,
     Optional,
     choose_float,
     choose_from,
@@ -201,7 +200,7 @@ class Recipe:
         # TODO make gs_params explicit
         grid = self.get_param_grid()
         if any(
-            isinstance(param, NumericChoice)
+            (hasattr(param, "rvs") and not isinstance(param, Sequence))
             for subgrid in grid
             for param in subgrid.values()
         ):
