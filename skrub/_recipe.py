@@ -132,7 +132,7 @@ class Recipe:
         y_cols=None,
         n_jobs=None,
         memory=None,
-        preview_sample_size=200,
+        preview_sample_size=2000,
         random_seed=0,
     ):
         self.input_data = input_data
