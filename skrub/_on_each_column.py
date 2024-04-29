@@ -149,10 +149,6 @@ class OnEachColumn(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
         self.rename_columns = rename_columns
         self.n_jobs = n_jobs
 
-    def __repr__(self) -> str:
-        t = self.transformer
-        return f"<{t!r}.transform(col) for col in X[{self.cols}]>"
-
     def fit(self, X, y=None):
         self.fit_transform(X, y)
         return self
