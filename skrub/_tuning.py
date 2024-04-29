@@ -56,6 +56,9 @@ class Choice(Sequence, BaseChoice):
         outcomes = [_with_fields(out, value=func(out.value)) for out in self.outcomes]
         return _with_fields(self, outcomes=outcomes)
 
+    def default(self):
+        return self.outcomes[0]
+
     def __repr__(self):
         if self.outcomes[0].name is None:
             args = [out.value for out in self.outcomes]
@@ -155,6 +158,17 @@ class NumericChoice(BaseNumericChoice):
             value = value.astype(int)
         return NumericOutcome(value, is_from_log_scale=self.log, in_choice=self.name)
 
+    def default(self):
+        low, high = self.low, self.high
+        if self.log:
+            low, high = np.log(low), np.log(high)
+        midpoint = np.mean([low, high])
+        if self.log:
+            midpoint = np.exp(midpoint)
+        if self.to_int:
+            midpoint = np.round(midpoint).astype(int)
+        return NumericOutcome(midpoint, is_from_log_scale=self.log, in_choice=self.name)
+
     def __repr__(self):
         return _repr_numeric_choice(self)
 
@@ -170,6 +184,8 @@ class DiscretizedNumericChoice(BaseNumericChoice, Sequence):
 
     def __post_init__(self):
         _check_bounds(self.low, self.high, self.log)
+        if self.n_steps < 1:
+            raise ValueError(f"n_steps must be >= 1, got: {self.n_steps}")
         if self.log:
             low, high = np.log(self.low), np.log(self.high)
         else:
@@ -183,7 +199,11 @@ class DiscretizedNumericChoice(BaseNumericChoice, Sequence):
     def rvs(self, size=None, random_state=None):
         random_state = check_random_state(random_state)
         value = random_state.choice(self.grid, size=size)
-        return NumericOutcome(value, self.log, in_choice=self.name)
+        return NumericOutcome(value, is_from_log_scale=self.log, in_choice=self.name)
+
+    def default(self):
+        value = self.grid[(len(self.grid) - 1) // 2]
+        return NumericOutcome(value, is_from_log_scale=self.log, in_choice=self.name)
 
     def __getitem__(self, item):
         return self.grid[item]
