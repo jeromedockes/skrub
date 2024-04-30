@@ -266,8 +266,8 @@ class Selector:
         n_jobs=None,
         columnwise="auto",
     ):
-        from .._on_column_selection import OnColumnSelection
         from .._on_each_column import OnEachColumn
+        from .._on_subframe import OnSubFrame
 
         if isinstance(columnwise, str) and columnwise == "auto":
             columnwise = hasattr(transformer, "__single_column_transformer__")
@@ -280,7 +280,7 @@ class Selector:
                 cols=self,
                 n_jobs=n_jobs,
             )
-        return OnColumnSelection(
+        return OnSubFrame(
             transformer,
             keep_original=keep_original,
             rename_columns=rename_columns,
