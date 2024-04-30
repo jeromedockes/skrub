@@ -30,16 +30,7 @@ NUMERIC_TRANSFORMER = ToFloat32()
 
 
 def _created_by(col, transformers):
-    col_name = sbd.name(col)
-    for step in transformers:
-        if hasattr(step, "created_outputs_"):
-            if col_name in step.created_outputs_:
-                return True
-        elif hasattr(step, "get_feature_names_out") and (
-            col_name in step.get_feature_names_out()
-        ):
-            return True
-    return False
+    return any(sbd.name(col) in t.created_outputs_ for t in transformers)
 
 
 def created_by(*transformers):
@@ -48,47 +39,6 @@ def created_by(*transformers):
         args=(transformers,),
         selector_repr=f"created_by(<any of {len(transformers)} transformers>)",
     )
-
-
-def _make_table_vectorizer_pipeline(
-    low_cardinality_transformer,
-    high_cardinality_transformer,
-    numeric_transformer,
-    datetime_transformer,
-    remainder_transformer,
-    cardinality_threshold,
-    passthrough,
-    n_jobs,
-):
-    cols = s.all() - passthrough
-    cleaning_steps = [
-        CheckInputDataFrame(),
-        cols.wrap_transformer(PandasConvertDTypes(), n_jobs=n_jobs),
-        cols.wrap_transformer(CleanNullStrings(), n_jobs=n_jobs),
-        cols.wrap_transformer(ToDatetime(), n_jobs=n_jobs),
-        cols.wrap_transformer(ToNumeric(), n_jobs=n_jobs),
-        cols.wrap_transformer(ToCategorical(cardinality_threshold - 1), n_jobs=n_jobs),
-    ]
-    low_cardinality = s.categorical() & s.cardinality_below(cardinality_threshold)
-    feature_extraction_steps = []
-    for selector, transformer in [
-        (cols & s.numeric(), numeric_transformer),
-        (cols & s.any_date(), datetime_transformer),
-        (cols & low_cardinality, low_cardinality_transformer),
-        (cols & (s.string() | s.categorical()), high_cardinality_transformer),
-    ]:
-        feature_extraction_steps.append(
-            (selector - created_by(*feature_extraction_steps)).wrap_transformer(
-                transformer, n_jobs=n_jobs, columnwise=True
-            )
-        )
-    remainder = cols - created_by(*feature_extraction_steps)
-    remainder_steps = [
-        remainder.wrap_transformer(
-            remainder_transformer, n_jobs=n_jobs, columnwise=True
-        ),
-    ]
-    return make_pipeline(*cleaning_steps, *feature_extraction_steps, *remainder_steps)
 
 
 class PassThrough(BaseEstimator):
@@ -105,7 +55,7 @@ class PassThrough(BaseEstimator):
         return self
 
 
-def _clone_or_create_transformer(transformer):
+def _check_transformer(transformer):
     if isinstance(transformer, str):
         if transformer == "passthrough":
             return PassThrough()
@@ -113,7 +63,7 @@ def _clone_or_create_transformer(transformer):
             return Drop()
         raise ValueError(
             f"Value not understood: {transformer!r}. Please provide either"
-            " 'passthrough' or a scikit-learn transformer."
+            " 'passthrough', 'drop', or a scikit-learn transformer."
         )
     return clone(transformer)
 
@@ -298,7 +248,7 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         numeric_transformer=NUMERIC_TRANSFORMER,
         datetime_transformer=DATETIME_TRANSFORMER,
         remainder_transformer="drop",
-        passthrough=(),
+        specific_transformers=(),
         n_jobs=None,
     ):
         self.cardinality_threshold = cardinality_threshold
@@ -315,7 +265,7 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
             datetime_transformer, DATETIME_TRANSFORMER
         )
         self.remainder_transformer = remainder_transformer
-        self.passthrough = passthrough
+        self.specific_transformers = specific_transformers
         self.n_jobs = n_jobs
 
     def fit(self, X, y=None):
@@ -339,22 +289,54 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         return self
 
     def _make_pipeline(self):
-        """Make a scikit-learn pipeline that is equivalent to this transformer.
+        cols = s.all() - self._user_managed_columns
 
-        Returns
-        -------
-        Pipeline
-           An unfitted scikit-learn pipeline that is equivalent to this transformer.
-        """
-        return _make_table_vectorizer_pipeline(
-            _clone_or_create_transformer(self.low_cardinality_transformer),
-            _clone_or_create_transformer(self.high_cardinality_transformer),
-            _clone_or_create_transformer(self.numeric_transformer),
-            _clone_or_create_transformer(self.datetime_transformer),
-            _clone_or_create_transformer(self.remainder_transformer),
-            self.cardinality_threshold,
-            self.passthrough,
-            self.n_jobs,
+        cleaning_steps = [CheckInputDataFrame()]
+        for transformer in [
+            PandasConvertDTypes(),
+            CleanNullStrings(),
+            ToDatetime(),
+            ToNumeric(),
+            ToCategorical(self.cardinality_threshold - 1),
+        ]:
+            cleaning_steps.append(
+                cols.wrap_transformer(transformer, n_jobs=self.n_jobs)
+            )
+
+        low_cardinality = s.categorical() & s.cardinality_below(
+            self.cardinality_threshold
+        )
+        encoding_steps = []
+        for transformer, selector in [
+            (self.numeric_transformer, s.numeric()),
+            (self.datetime_transformer, s.any_date()),
+            (self.low_cardinality_transformer, low_cardinality),
+            (self.high_cardinality_transformer, s.string() | s.categorical()),
+        ]:
+            encoding_steps.append(
+                (cols & selector - created_by(*encoding_steps)).wrap_transformer(
+                    _check_transformer(transformer),
+                    n_jobs=self.n_jobs,
+                )
+            )
+
+        remainder_steps = [
+            (cols - created_by(*encoding_steps)).wrap_transformer(
+                _check_transformer(self.remainder_transformer),
+                n_jobs=self.n_jobs,
+            )
+        ]
+
+        user_steps = []
+        for user_transformer, user_cols in self.specific_transformers_:
+            user_steps.append(
+                s.make_selector(user_cols).wrap_transformer(
+                    user_transformer, n_jobs=self.n_jobs
+                )
+            )
+
+        self._pipeline = make_pipeline(
+            *cleaning_steps, *encoding_steps, *remainder_steps, *user_steps
         )
 
     def fit_transform(self, X, y=None):
@@ -374,7 +356,8 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         dataframe
             The transformed input.
         """
-        self._pipeline = self._make_pipeline()
+        self._check_specific_transformers()
+        self._make_pipeline()
         output = self._pipeline.fit_transform(X)
         self.feature_names_in_ = self._pipeline.steps[0][1].feature_names_out_
         self.all_outputs_ = sbd.column_names(output)
@@ -383,6 +366,29 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         self._store_transformers()
         self._store_output_to_input()
         return output
+
+    def _check_specific_transformers(self):
+        user_managed_columns = {}
+        self.specific_transformers_ = []
+        for i, config in enumerate(self.specific_transformers):
+            try:
+                transformer, cols = config
+            except (ValueError, TypeError):
+                raise ValueError(
+                    "Expected a list of (transformer, columns) pairs. "
+                    f"Got {config!r} at index {i}."
+                )
+            for c in cols:
+                if not isinstance(c, str):
+                    raise ValueError(f"cols must be string names, got {c}")
+                if c in user_managed_columns:
+                    raise ValueError(
+                        f"{c} used twice in in specific_transformers, "
+                        f"at indices {user_managed_columns[c]} and {i}."
+                    )
+            user_managed_columns |= {c: i for c in cols}
+            self.specific_transformers_.append((_check_transformer(transformer), cols))
+        self._user_managed_columns = list(user_managed_columns.keys())
 
     def transform(self, X):
         """Transform dataframe.
@@ -432,8 +438,10 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
                 new_outputs = []
                 for output in outputs_at_previous_step:
                     new_outputs.extend(step.input_to_outputs_.get(output, [output]))
-                    if output in step.transformers_:
+                    if hasattr(step, "transformers_") and output in step.transformers_:
                         to_steps[col].append(step.transformers_[output])
+                    elif hasattr(step, "transformer_") and output in step.used_inputs_:
+                        to_steps[col].append(step.transformer_)
                 to_outputs[col] = new_outputs
         self.input_to_outputs_ = to_outputs
         self.input_to_processing_steps_ = to_steps

@@ -127,6 +127,7 @@ class OnSubFrame(TransformerMixin, BaseEstimator, auto_wrap_output_keys=()):
         self.created_outputs_ = self._transformed_output_names
         self.all_outputs_ = passthrough_names + self._transformed_output_names
         self.feature_names_in_ = self.all_inputs_
+        self.input_to_outputs_ = {c: self.created_outputs_ for c in self.used_inputs_}
         return result
 
     def fit(self, X, y=None):
