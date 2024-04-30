@@ -153,7 +153,7 @@ class Recipe:
         ]
 
     def _with_prepared_steps(self, steps):
-        new = Recipe(
+        new = self.__class__(
             input_data=self.input_data,
             y_cols=self.y_cols,
             n_jobs=self.n_jobs,
