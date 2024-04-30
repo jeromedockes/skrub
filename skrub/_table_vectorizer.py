@@ -105,11 +105,7 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
     literal string ``"drop"`` to drop the corresponding columns (they will not
     appear in the output), or ``"passthrough"`` to leave them unchanged.
 
-    Finally, it is possible to indicate that some columns should not be
-    modified by the ``TableVectorizer``, and should be "passed through"
-    unchanged (for example if we know they are already correctly encoded or we
-    want to deal with them further down the data processing pipeline). The
-    names of these columns must be given in the ``passthrough`` argument.
+    # TODO specific_transformers
 
     Parameters
     ----------
@@ -140,9 +136,7 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         scikit-learn estimators, the default for ``remainder_transformer`` is
         ``"drop"``.
 
-    passthrough : str, sequence of str, or skrub selector, optional
-        Columns to pass through without modifying them. Default is ``()``: all
-        columns may be transformed.
+    # TODO specific_transformers
 
     n_jobs : int, default=None
         Number of jobs to run in parallel.
@@ -181,11 +175,11 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
     >>> from sklearn.preprocessing import StandardScaler
     >>> vectorizer = TableVectorizer(numeric_transformer=StandardScaler())
     >>> vectorizer.fit_transform(df)
-       A_one  A_three  A_two  B_year  B_month  B_day  B_total_seconds    C
-    0    1.0      0.0    0.0  2024.0      2.0    2.0     1706832000.0 -1.0
-    1    0.0      0.0    1.0  2024.0      2.0   23.0     1708646400.0  NaN
-    2    0.0      0.0    1.0  2024.0      3.0   12.0     1710201600.0  1.0
-    3    0.0      1.0    0.0  2024.0      3.0   13.0     1710288000.0  NaN
+       B_year  B_month  B_day  B_total_seconds    C  A_one  A_three  A_two
+    0  2024.0      2.0    2.0     1706832000.0 -1.0    1.0      0.0    0.0
+    1  2024.0      2.0   23.0     1708646400.0  NaN    0.0      0.0    1.0
+    2  2024.0      3.0   12.0     1710201600.0  1.0    0.0      0.0    1.0
+    3  2024.0      3.0   13.0     1710288000.0  NaN    0.0      1.0    0.0
 
     We can inspect which outputs were created from a given column in the input
     dataframe:
@@ -203,21 +197,18 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
     >>> vectorizer.input_to_processing_steps_["B"]
     [PandasConvertDTypes(), CleanNullStrings(), ToDatetime(), EncodeDatetime()]
 
-    The passthrough parameter tells the vectorizer to pass through some columns
-    without modification:
-
-    >>> vectorizer = TableVectorizer(passthrough="B")
+    >>> vectorizer = TableVectorizer(specific_transformers=[("passthrough", ["B"])])
     >>> vectorizer.fit_transform(df)
-       A_one  A_three  A_two           B     C
-    0    1.0      0.0    0.0  02/02/2024   1.5
-    1    0.0      0.0    1.0  23/02/2024   NaN
-    2    0.0      0.0    1.0  12/03/2024  12.2
-    3    0.0      1.0    0.0  13/03/2024   NaN
+                B     C  A_one  A_three  A_two
+    0  02/02/2024   1.5    1.0      0.0    0.0
+    1  23/02/2024   NaN    0.0      0.0    1.0
+    2  12/03/2024  12.2    0.0      0.0    1.0
+    3  13/03/2024   NaN    0.0      1.0    0.0
 
     Here the column "B" has not been modified at all.
 
     >>> vectorizer.input_to_processing_steps_["B"]
-    []
+    [PassThrough()]
 
     Note this is different than providing "passthrough" as one of the
     transformers, because in the latter case the preprocessing steps are still
@@ -225,11 +216,11 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
 
     >>> vectorizer = TableVectorizer(datetime_transformer="passthrough")
     >>> vectorizer.fit_transform(df)
-       A_one  A_three  A_two          B     C
-    0    1.0      0.0    0.0 2024-02-02   1.5
-    1    0.0      0.0    1.0 2024-02-23   NaN
-    2    0.0      0.0    1.0 2024-03-12  12.2
-    3    0.0      1.0    0.0 2024-03-13   NaN
+               B     C  A_one  A_three  A_two
+    0 2024-02-02   1.5    1.0      0.0    0.0
+    1 2024-02-23   NaN    0.0      0.0    1.0
+    2 2024-03-12  12.2    0.0      0.0    1.0
+    3 2024-03-13   NaN    0.0      1.0    0.0
 
     Here the column "B" has been preprocessed and transformed to a Datetime
     column, but as the final estimator for datetime columns is "passthrough"
