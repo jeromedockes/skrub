@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 import sklearn
 from numpy.testing import assert_array_almost_equal, assert_array_equal, assert_raises
+from pandas.testing import assert_frame_equal
 from scipy.sparse import csr_matrix
 from sklearn.base import clone
 from sklearn.preprocessing import FunctionTransformer, OneHotEncoder
@@ -660,3 +661,37 @@ def test_vectorize_datetime():
     X = pd.DataFrame({"A": [pd.Timestamp("2023-01-01", tz="UTC")]}).convert_dtypes()
     out = TableVectorizer().fit_transform(X)
     assert int(out.iloc[0, 0]) == 2023
+
+
+def test_specific_transformers():
+    df = pd.DataFrame(dict(a1=[1, 2, 3], a2=[1, 2, 3], b1=["a", "b", "c"]))
+    tv = TableVectorizer(
+        specific_transformers=[
+            (
+                FunctionTransformer(lambda df: df.rename(columns=lambda c: f"{c}_new")),
+                ["b1"],
+            ),
+            (FunctionTransformer(lambda df: df * 2), ["a2"]),
+        ]
+    )
+    out = tv.fit_transform(df)
+    expected = pd.DataFrame(
+        dict(
+            a1=pd.Series([1.0, 2.0, 3.0], dtype="float32"),
+            a2=[2, 4, 6],
+            b1_new=["a", "b", "c"],
+        )
+    )
+    assert_frame_equal(out, expected)
+    with pytest.raises(ValueError, match=".*twice"):
+        TableVectorizer(
+            specific_transformers=[
+                ("passthrough", ["a1", "b1"]),
+                ("passthrough", ["a1"]),
+            ]
+        ).fit_transform(df)
+
+    with pytest.raises(ValueError, match="Expected a list of .* pairs"):
+        TableVectorizer(
+            specific_transformers=[("name", "passthrough", ["a1", "b1"])]
+        ).fit_transform(df)
