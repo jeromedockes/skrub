@@ -1,4 +1,5 @@
 import re
+import warnings
 
 import joblib
 import numpy as np
@@ -9,6 +10,7 @@ from numpy.testing import assert_array_almost_equal, assert_array_equal, assert_
 from pandas.testing import assert_frame_equal
 from scipy.sparse import csr_matrix
 from sklearn.base import clone
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import FunctionTransformer, OneHotEncoder
 from sklearn.utils._testing import skip_if_no_parallel
 from sklearn.utils.fixes import parse_version
@@ -695,3 +697,28 @@ def test_specific_transformers():
         TableVectorizer(
             specific_transformers=[("name", "passthrough", ["a1", "b1"])]
         ).fit_transform(df)
+
+
+def test_accept_pipeline():
+    # non-regression test for https://github.com/skrub-data/skrub/issues/886
+    # TableVectorizer used to force transformers to inherit from TransformerMixin
+    df = pd.DataFrame(dict(a=[1.1, 2.2]))
+    tv = TableVectorizer(numeric_transformer=make_pipeline("passthrough"))
+    tv.fit(df)
+
+
+def test_clean_null_downcast_warning():
+    # non-regression test for https://github.com/skrub-data/skrub/issues/894
+    pl = pytest.importorskip("polars")
+    df = pl.DataFrame(dict(a=[0, 1], b=["a", "b"]))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        TableVectorizer().fit_transform(df)
+
+
+def test_numberlike_categories():
+    # non-regression test for https://github.com/skrub-data/skrub/issues/874
+    # TableVectorizer would not apply the same transformations in fit and
+    # transform and end up treating numbers as categories
+    df = pd.DataFrame(dict(a=pd.Series(["0", "1"], dtype="category")))
+    TableVectorizer().fit(df).transform(df)
