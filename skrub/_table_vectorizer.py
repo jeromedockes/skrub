@@ -198,37 +198,23 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
     >>> vectorizer.input_to_processing_steps_["B"]
     [PandasConvertDTypes(), CleanNullStrings(), ToDatetime(), EncodeDatetime()]
 
-    >>> vectorizer = TableVectorizer(specific_transformers=[("passthrough", ["B"])])
+    We can also provide transformers for specific columns
+
+    >>> from sklearn.preprocessing import OneHotEncoder
+    >>> ohe = OneHotEncoder(sparse_output=False)
+    >>> vectorizer = TableVectorizer(
+    ...     specific_transformers=[("drop", ["A"]), (ohe, ["C"])]
+    ... )
     >>> vectorizer.fit_transform(df)
-       A_one  A_three  A_two           B     C
-    0    1.0      0.0    0.0  02/02/2024   1.5
-    1    0.0      0.0    1.0  23/02/2024   NaN
-    2    0.0      0.0    1.0  12/03/2024  12.2
-    3    0.0      1.0    0.0  13/03/2024   NaN
+       B_year  B_month  B_day  B_total_seconds  C_1.5  C_12.2  C_N/A
+    0  2024.0      2.0    2.0     1706832000.0    1.0     0.0    0.0
+    1  2024.0      2.0   23.0     1708646400.0    0.0     0.0    1.0
+    2  2024.0      3.0   12.0     1710201600.0    0.0     1.0    0.0
+    3  2024.0      3.0   13.0     1710288000.0    0.0     0.0    1.0
 
-    Here the column "B" has not been modified at all.
-
-    >>> vectorizer.input_to_processing_steps_["B"]
-    [PassThrough()]
-
-    Note this is different than providing "passthrough" as one of the
-    transformers, because in the latter case the preprocessing steps are still
-    applied (we are just setting the final transformer):
-
-    >>> vectorizer = TableVectorizer(datetime_transformer="passthrough")
-    >>> vectorizer.fit_transform(df)
-       A_one  A_three  A_two          B     C
-    0    1.0      0.0    0.0 2024-02-02   1.5
-    1    0.0      0.0    1.0 2024-02-23   NaN
-    2    0.0      0.0    1.0 2024-03-12  12.2
-    3    0.0      1.0    0.0 2024-03-13   NaN
-
-    Here the column "B" has been preprocessed and transformed to a Datetime
-    column, but as the final estimator for datetime columns is "passthrough"
-    the year, month, day and total_seconds features have not been extracted.
-
-    >>> vectorizer.input_to_processing_steps_["B"]
-    [PandasConvertDTypes(), CleanNullStrings(), ToDatetime(), PassThrough()]
+    Here the column "A" has been dropped and the column "B" has been passed to
+    the ``OneHotEncoder`` (without any preprocessing such as converting it to
+    numbers as was done in the first example).
     """
 
     def __init__(
