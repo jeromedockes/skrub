@@ -75,7 +75,7 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
     Applies a different transformation to each of several kinds of columns:
 
     - numeric:
-        Floats and ints.
+        Floats ints, and Booleans.
     - datetime:
         Datetimes and dates.
     - low_cardinality:
@@ -96,6 +96,12 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         with ``object`` dtype) are called the "remainder" columns and a
         different transformer can be specified for those.
 
+    .. note::
+
+        Transformations are applied **independently on each column**. A
+        different transformer instance is used for each column separately;
+        multivariate transformations are therefore not supported.
+
     The transformer for each kind of column can be configured with the
     corresponding ``*_transformer`` parameter: ``numeric_transformer``,
     ``datetime_transformer``, ..., ``remainder_transformer``.
@@ -106,7 +112,10 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
     literal string ``"drop"`` to drop the corresponding columns (they will not
     appear in the output), or ``"passthrough"`` to leave them unchanged.
 
-    # TODO specific_transformers
+    Additionally, it is possible to specify transformers for specific columns,
+    overriding the categories described above. This is done by providing pairs
+    of (transformer, list_of_columns) as the ``specific_transformers``
+    parameter.
 
     Parameters
     ----------
@@ -137,7 +146,13 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         scikit-learn estimators, the default for ``remainder_transformer`` is
         ``"drop"``.
 
-    # TODO specific_transformers
+    specific_transformers : list of (transformer, list of column names) pairs, optional
+        Override the categories above for the given columns and force using the
+        specified transformer. This disables any preprocessing usually done by
+        the TableVectorizer; the columns are passed to the transformer without
+        any modification. Using ``specific_transformers`` provides similar
+        functionality to what is offered by scikit-learn's
+        ``ColumnTransformer``.
 
     n_jobs : int, default=None
         Number of jobs to run in parallel.
@@ -169,52 +184,126 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
     >>> from skrub import TableVectorizer
     >>> import pandas as pd
     >>> df = pd.DataFrame({
-    ...     "A": ["one", "two", "two", "three"],
-    ...     "B": ["02/02/2024", "23/02/2024", "12/03/2024", "13/03/2024"],
-    ...     "C": ["1.5", "N/A", "12.2", "N/A"],
+    ...     'A': ['one', 'two', 'two', 'three'],
+    ...     'B': ['02/02/2024', '23/02/2024', '12/03/2024', '13/03/2024'],
+    ...     'C': ['1.5', 'N/A', '12.2', 'N/A'],
     ... })
-    >>> from sklearn.preprocessing import StandardScaler
-    >>> vectorizer = TableVectorizer(numeric_transformer=StandardScaler())
+    >>> df
+           A           B     C
+    0    one  02/02/2024   1.5
+    1    two  23/02/2024   N/A
+    2    two  12/03/2024  12.2
+    3  three  13/03/2024   N/A
+
+    >>> vectorizer = TableVectorizer()
     >>> vectorizer.fit_transform(df)
-       A_one  A_three  A_two  B_year  B_month  B_day  B_total_seconds    C
-    0    1.0      0.0    0.0  2024.0      2.0    2.0     1706832000.0 -1.0
-    1    0.0      0.0    1.0  2024.0      2.0   23.0     1708646400.0  NaN
-    2    0.0      0.0    1.0  2024.0      3.0   12.0     1710201600.0  1.0
-    3    0.0      1.0    0.0  2024.0      3.0   13.0     1710288000.0  NaN
+       A_one  A_three  A_two  B_year  B_month  B_day  B_total_seconds     C
+    0    1.0      0.0    0.0  2024.0      2.0    2.0     1706832000.0   1.5
+    1    0.0      0.0    1.0  2024.0      2.0   23.0     1708646400.0   NaN
+    2    0.0      0.0    1.0  2024.0      3.0   12.0     1710201600.0  12.2
+    3    0.0      1.0    0.0  2024.0      3.0   13.0     1710288000.0   NaN
 
     We can inspect which outputs were created from a given column in the input
     dataframe:
 
-    >>> vectorizer.input_to_outputs_["B"]
+    >>> vectorizer.input_to_outputs_['B']
     ['B_year', 'B_month', 'B_day', 'B_total_seconds']
 
     and the reverse mapping:
 
-    >>> vectorizer.output_to_input_["B_total_seconds"]
+    >>> vectorizer.output_to_input_['B_total_seconds']
     'B'
 
-    We can also see all the processing steps that were applied to a given column
+    We can also see the final transformer that was applied to a given column:
 
-    >>> vectorizer.input_to_processing_steps_["B"]
+    >>> vectorizer.transformers_['A']
+    OneHotEncoder(drop='if_binary', dtype='float32', handle_unknown='ignore',
+                  sparse_output=False)
+    >>> vectorizer.transformers_['A'].categories_
+    [array(['one', 'three', 'two'], dtype=object)]
+
+    Before applying that final transformer, the ``TableVectorizer`` applies
+    several preprocessing steps to all columns, for example to detect numbers
+    or dates that are represented as strings. We can inspect all the processing
+    steps that were applied to a given column:
+
+    >>> vectorizer.input_to_processing_steps_['B']
     [PandasConvertDTypes(), CleanNullStrings(), ToDatetime(), EncodeDatetime()]
+
+    >>> vectorizer.transformers_['B']
+    EncodeDatetime()
+
+    **Transformers are applied separately to each column**
+
+    The ``TableVectorizer`` vectorizes each column separately -- a different
+    transformer is applied to each column; multivariate transformers are not
+    allowed.
+
+    >>> df = pd.DataFrame(dict(A=['one', 'two'], B=['three', 'four']))
+    >>> vectorizer = TableVectorizer().fit(df)
+    >>> vectorizer.transformers_['A'] is not vectorizer.transformers_['B']
+    True
+    >>> vectorizer.transformers_['A'].categories_
+    [array(['one', 'two'], dtype=object)]
+    >>> vectorizer.transformers_['B'].categories_
+    [array(['four', 'three'], dtype=object)]
+
+
+    **Overriding the transformer for specific columns**
 
     We can also provide transformers for specific columns
 
     >>> from sklearn.preprocessing import OneHotEncoder
     >>> ohe = OneHotEncoder(sparse_output=False)
     >>> vectorizer = TableVectorizer(
-    ...     specific_transformers=[("drop", ["A"]), (ohe, ["C"])]
+    ...     specific_transformers=[('drop', ['A']), (ohe, ['C'])]
     ... )
     >>> vectorizer.fit_transform(df)
-       B_year  B_month  B_day  B_total_seconds  C_1.5  C_12.2  C_N/A
-    0  2024.0      2.0    2.0     1706832000.0    1.0     0.0    0.0
-    1  2024.0      2.0   23.0     1708646400.0    0.0     0.0    1.0
-    2  2024.0      3.0   12.0     1710201600.0    0.0     1.0    0.0
-    3  2024.0      3.0   13.0     1710288000.0    0.0     0.0    1.0
+    Traceback (most recent call last):
+        ...
+    ValueError: The following columns are requested for selection but missing from dataframe: ['C']
 
-    Here the column "A" has been dropped and the column "B" has been passed to
+    Here the column 'A' has been dropped and the column 'B' has been passed to
     the ``OneHotEncoder`` (without any preprocessing such as converting it to
     numbers as was done in the first example).
+
+    When a column is used in one of the ``specific_transformers``, none of the
+    preprocessing steps are applied and the specific transformer controls the
+    full transformation for that column.
+
+    >>> df = pd.DataFrame(dict(A=['1.1', '2.2', 'N/A'], B=['1.1', '2.2', 'N/A']))
+    >>> df
+         A    B
+    0  1.1  1.1
+    1  2.2  2.2
+    2  N/A  N/A
+    >>> vectorizer = TableVectorizer(
+    ...     numeric_transformer='passthrough',
+    ...     specific_transformers=[('passthrough', ['B'])],
+    ... )
+    >>> vectorizer.fit_transform(df)
+          A    B
+    0   1.1  1.1
+    1   2.2  2.2
+    2  <NA>  N/A
+
+    >>> vectorizer.input_to_processing_steps_
+    {'A': [PandasConvertDTypes(), CleanNullStrings(), ToNumeric(), PassThrough()], 'B': [PassThrough()]}
+
+    Here we can see that the final estimator for both columns is passthrough,
+    but unlike ``'B'``, ``'A'`` went through the default preprocessing steps
+    and was converted to a numeric column.
+
+    Specifying several specific transformers for the same column is not allowed.
+
+    >>> vectorizer = TableVectorizer(
+    ...     specific_transformers=[('passthrough', ['A', 'B']), ('drop', ['A'])]
+    ... )
+
+    >>> vectorizer.fit_transform(df)
+    Traceback (most recent call last):
+        ...
+    ValueError: Column 'A' used twice in in specific_transformers, at indices 0 and 1.
     """
 
     def __init__(
@@ -294,7 +383,7 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         )
         encoding_steps = []
         for transformer, selector in [
-            (self.numeric_transformer, s.numeric()),
+            (self.numeric_transformer, s.numeric() | s.boolean()),
             (self.datetime_transformer, s.any_date()),
             (self.low_cardinality_transformer, low_cardinality),
             (self.high_cardinality_transformer, s.string() | s.categorical()),
@@ -364,7 +453,7 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
                     raise ValueError(f"cols must be string names, got {c}")
                 if c in user_managed_columns:
                     raise ValueError(
-                        f"{c} used twice in in specific_transformers, "
+                        f"Column {c!r} used twice in in specific_transformers, "
                         f"at indices {user_managed_columns[c]} and {i}."
                     )
             user_managed_columns |= {c: i for c in cols}
