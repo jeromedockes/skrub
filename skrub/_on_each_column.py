@@ -245,9 +245,9 @@ def _fit_transform_column(column, columns_to_handle, transformer):
     except RejectColumn:
         return col_name, [column], None
     except Exception as e:
-        raise RuntimeError(
+        raise ValueError(
             f"Transformer {transformer.__class__.__name__}.fit_transform "
-            f"failed on column {col_name}"
+            f"failed on column {col_name!r}. See above for the full traceback."
         ) from e
     output_cols = sbd.to_column_list(output)
     return col_name, output_cols, transformer
@@ -260,9 +260,9 @@ def _transform_column(column, transformer):
     try:
         output = transformer.transform(transformer_input)
     except Exception as e:
-        raise RuntimeError(
+        raise ValueError(
             f"Transformer {transformer.__class__.__name__}.transform "
-            f"failed on column {sbd.name(column)}"
+            f"failed on column {sbd.name(column)!r}. See above for the full traceback."
         ) from e
     output_cols = sbd.to_column_list(output)
     return output_cols

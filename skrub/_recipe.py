@@ -248,7 +248,7 @@ class Recipe:
                     df = transformer.fit_transform(df, y)
                 except Exception as e:
                     e_repr = "\n    ".join(traceback.format_exception_only(e))
-                    raise RuntimeError(
+                    raise ValueError(
                         f"Transformation failed at step '{step_name}'.\n"
                         f"Input data for this step:\n{df}\n"
                         f"Error message:\n    {e_repr}"

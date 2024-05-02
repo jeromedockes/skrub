@@ -248,7 +248,6 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
     >>> vectorizer.transformers_['B'].categories_
     [array(['four', 'three'], dtype=object)]
 
-
     **Overriding the transformer for specific columns**
 
     We can also provide transformers for specific columns

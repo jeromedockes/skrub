@@ -375,7 +375,7 @@ def test_datetime_encoder_invalid_params(px):
     X = get_datetime()
     X = px.DataFrame(X)
 
-    with pytest.raises(ValueError, match=r"(?=.*'resolution' options)"):
+    with pytest.raises(ValueError, match=r".*failed on column '0'"):
         DatetimeEncoder(resolution="hello").fit(X)
 
     DatetimeEncoder(resolution=None).fit(X)
