@@ -5,6 +5,7 @@ from . import _datetime_utils
 from . import _selectors as s
 from ._dispatch import dispatch
 from ._exceptions import RejectColumn
+from ._wrap_transformer import wrap_transformer
 
 _SAMPLE_SIZE = 1000
 
@@ -95,8 +96,8 @@ def to_datetime(df, format=None):
 @to_datetime.specialize("pandas", argument_type="DataFrame")
 @to_datetime.specialize("polars", argument_type="DataFrame")
 def _to_datetime_dataframe(df, format=None):
-    return (
-        s.all().wrap_transformer(ToDatetime(datetime_format=format)).fit_transform(df)
+    return wrap_transformer(ToDatetime(datetime_format=format), s.all()).fit_transform(
+        df
     )
 
 

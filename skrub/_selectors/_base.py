@@ -258,35 +258,6 @@ class Selector:
     def __rxor__(self, other):
         return XOr(other, self)
 
-    def wrap_transformer(
-        self,
-        transformer,
-        keep_original=False,
-        rename_columns="{}",
-        n_jobs=None,
-        columnwise="auto",
-    ):
-        from .._on_each_column import OnEachColumn
-        from .._on_subframe import OnSubFrame
-
-        if isinstance(columnwise, str) and columnwise == "auto":
-            columnwise = hasattr(transformer, "__single_column_transformer__")
-
-        if columnwise:
-            return OnEachColumn(
-                transformer,
-                keep_original=keep_original,
-                rename_columns=rename_columns,
-                cols=self,
-                n_jobs=n_jobs,
-            )
-        return OnSubFrame(
-            transformer,
-            keep_original=keep_original,
-            rename_columns=rename_columns,
-            cols=self,
-        )
-
 
 class All(Selector):
     def _matches(self, col):

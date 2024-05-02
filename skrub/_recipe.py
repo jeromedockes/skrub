@@ -30,6 +30,7 @@ from ._tuning import (
     unwrap_default,
     write_indented,
 )
+from ._wrap_transformer import wrap_transformer
 
 __all__ = [
     "Recipe",
@@ -61,8 +62,9 @@ class Step:
     def _make_transformer(self, estimator=None, n_jobs=1):
         if estimator is None:
             estimator = self.estimator
-        return self.cols.wrap_transformer(
+        return wrap_transformer(
             estimator,
+            self.cols,
             keep_original=self.keep_original,
             rename_columns=self.rename_columns,
             n_jobs=n_jobs,

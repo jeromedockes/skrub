@@ -17,6 +17,7 @@ from ._to_categorical import ToCategorical
 from ._to_datetime import ToDatetime
 from ._to_float import ToFloat32
 from ._to_numeric import ToNumeric
+from ._wrap_transformer import wrap_transformer
 
 HIGH_CARDINALITY_TRANSFORMER = GapEncoder(n_components=30)
 LOW_CARDINALITY_TRANSFORMER = OneHotEncoder(
@@ -291,7 +292,7 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
             ToCategorical(self.cardinality_threshold - 1),
         ]:
             cleaning_steps.append(
-                cols.wrap_transformer(transformer, n_jobs=self.n_jobs)
+                wrap_transformer(transformer, cols, n_jobs=self.n_jobs)
             )
 
         low_cardinality = s.categorical() & s.cardinality_below(
@@ -305,15 +306,17 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
             (self.high_cardinality_transformer, s.string() | s.categorical()),
         ]:
             encoding_steps.append(
-                (cols & selector - created_by(*encoding_steps)).wrap_transformer(
+                wrap_transformer(
                     _check_transformer(transformer),
+                    cols & selector - created_by(*encoding_steps),
                     n_jobs=self.n_jobs,
                 )
             )
 
         remainder_steps = [
-            (cols - created_by(*encoding_steps)).wrap_transformer(
+            wrap_transformer(
                 _check_transformer(self.remainder_transformer),
+                cols - created_by(*encoding_steps),
                 n_jobs=self.n_jobs,
             )
         ]
@@ -321,9 +324,7 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         user_steps = []
         for user_transformer, user_cols in self.specific_transformers_:
             user_steps.append(
-                s.make_selector(user_cols).wrap_transformer(
-                    user_transformer, n_jobs=self.n_jobs
-                )
+                wrap_transformer(user_transformer, user_cols, n_jobs=self.n_jobs)
             )
 
         self._pipeline = make_pipeline(
