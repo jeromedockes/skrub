@@ -176,11 +176,11 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
     >>> from sklearn.preprocessing import StandardScaler
     >>> vectorizer = TableVectorizer(numeric_transformer=StandardScaler())
     >>> vectorizer.fit_transform(df)
-       B_year  B_month  B_day  B_total_seconds    C  A_one  A_three  A_two
-    0  2024.0      2.0    2.0     1706832000.0 -1.0    1.0      0.0    0.0
-    1  2024.0      2.0   23.0     1708646400.0  NaN    0.0      0.0    1.0
-    2  2024.0      3.0   12.0     1710201600.0  1.0    0.0      0.0    1.0
-    3  2024.0      3.0   13.0     1710288000.0  NaN    0.0      1.0    0.0
+       A_one  A_three  A_two  B_year  B_month  B_day  B_total_seconds    C
+    0    1.0      0.0    0.0  2024.0      2.0    2.0     1706832000.0 -1.0
+    1    0.0      0.0    1.0  2024.0      2.0   23.0     1708646400.0  NaN
+    2    0.0      0.0    1.0  2024.0      3.0   12.0     1710201600.0  1.0
+    3    0.0      1.0    0.0  2024.0      3.0   13.0     1710288000.0  NaN
 
     We can inspect which outputs were created from a given column in the input
     dataframe:
@@ -200,11 +200,11 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
 
     >>> vectorizer = TableVectorizer(specific_transformers=[("passthrough", ["B"])])
     >>> vectorizer.fit_transform(df)
-                B     C  A_one  A_three  A_two
-    0  02/02/2024   1.5    1.0      0.0    0.0
-    1  23/02/2024   NaN    0.0      0.0    1.0
-    2  12/03/2024  12.2    0.0      0.0    1.0
-    3  13/03/2024   NaN    0.0      1.0    0.0
+       A_one  A_three  A_two           B     C
+    0    1.0      0.0    0.0  02/02/2024   1.5
+    1    0.0      0.0    1.0  23/02/2024   NaN
+    2    0.0      0.0    1.0  12/03/2024  12.2
+    3    0.0      1.0    0.0  13/03/2024   NaN
 
     Here the column "B" has not been modified at all.
 
@@ -217,11 +217,11 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
 
     >>> vectorizer = TableVectorizer(datetime_transformer="passthrough")
     >>> vectorizer.fit_transform(df)
-               B     C  A_one  A_three  A_two
-    0 2024-02-02   1.5    1.0      0.0    0.0
-    1 2024-02-23   NaN    0.0      0.0    1.0
-    2 2024-03-12  12.2    0.0      0.0    1.0
-    3 2024-03-13   NaN    0.0      1.0    0.0
+       A_one  A_three  A_two          B     C
+    0    1.0      0.0    0.0 2024-02-02   1.5
+    1    0.0      0.0    1.0 2024-02-23   NaN
+    2    0.0      0.0    1.0 2024-03-12  12.2
+    3    0.0      1.0    0.0 2024-03-13   NaN
 
     Here the column "B" has been preprocessed and transformed to a Datetime
     column, but as the final estimator for datetime columns is "passthrough"
@@ -281,6 +281,16 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
         return self
 
     def _make_pipeline(self):
+        def add_step(steps, transformer, cols):
+            steps.append(
+                wrap_transformer(
+                    _check_transformer(transformer),
+                    cols,
+                    n_jobs=self.n_jobs,
+                    columnwise=True,
+                )
+            )
+
         cols = s.all() - self._user_managed_columns
 
         cleaning_steps = [CheckInputDataFrame()]
@@ -291,9 +301,7 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
             ToNumeric(),
             ToCategorical(self.cardinality_threshold - 1),
         ]:
-            cleaning_steps.append(
-                wrap_transformer(transformer, cols, n_jobs=self.n_jobs)
-            )
+            add_step(cleaning_steps, transformer, cols)
 
         low_cardinality = s.categorical() & s.cardinality_below(
             self.cardinality_threshold
@@ -305,27 +313,22 @@ class TableVectorizer(TransformerMixin, BaseEstimator, auto_wrap_output_keys=())
             (self.low_cardinality_transformer, low_cardinality),
             (self.high_cardinality_transformer, s.string() | s.categorical()),
         ]:
-            encoding_steps.append(
-                wrap_transformer(
-                    _check_transformer(transformer),
-                    cols & selector - created_by(*encoding_steps),
-                    n_jobs=self.n_jobs,
-                )
+            add_step(
+                encoding_steps,
+                transformer,
+                cols & selector - created_by(*encoding_steps),
             )
 
-        remainder_steps = [
-            wrap_transformer(
-                _check_transformer(self.remainder_transformer),
-                cols - created_by(*encoding_steps),
-                n_jobs=self.n_jobs,
-            )
-        ]
+        remainder_steps = []
+        add_step(
+            remainder_steps,
+            self.remainder_transformer,
+            cols - created_by(*encoding_steps),
+        )
 
         user_steps = []
         for user_transformer, user_cols in self.specific_transformers_:
-            user_steps.append(
-                wrap_transformer(user_transformer, user_cols, n_jobs=self.n_jobs)
-            )
+            add_step(user_steps, user_transformer, user_cols)
 
         self._pipeline = make_pipeline(
             *cleaning_steps, *encoding_steps, *remainder_steps, *user_steps
