@@ -33,7 +33,7 @@ from ._tuning import (
 from ._wrap_transformer import wrap_transformer
 
 __all__ = [
-    "Recipe",
+    "PipeBuilder",
     "choose_from",
     "optional",
     "choose_float",
@@ -126,7 +126,7 @@ def _to_estimator(step, n_jobs):
     return _check_estimator(estimator, step, n_jobs)
 
 
-class Recipe:
+class PipeBuilder:
     def __init__(
         self,
         input_data=None,
@@ -485,6 +485,12 @@ class Recipe:
             rename_columns=rename_columns,
         )
         return self._with_prepared_steps(self._steps + [step])
+
+    def drop(self, cols, name=None):
+        return self.apply(Drop(), cols=cols, name=name)
+
+    def select(self, cols, name=None):
+        return self.drop(s.inv(cols), name=name)
 
 
 def _describe_choice(choice, buf):
