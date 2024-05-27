@@ -58,6 +58,7 @@ class Step:
     name: str | None = None
     keep_original: bool = False
     rename_columns: str = "{}"
+    allow_reject: bool = False
 
     def _make_transformer(self, estimator=None, n_jobs=1):
         if estimator is None:
@@ -67,6 +68,7 @@ class Step:
             self.cols,
             keep_original=self.keep_original,
             rename_columns=self.rename_columns,
+            allow_reject=self.allow_reject,
             n_jobs=n_jobs,
         )
 
@@ -465,6 +467,7 @@ class PipeBuilder:
         name=None,
         keep_original=False,
         rename_columns="{}",
+        allow_reject=False,
     ):
         if self._has_predictor():
             pred_name = self._get_step_names()[-1]
@@ -483,6 +486,7 @@ class PipeBuilder:
             name=name,
             keep_original=keep_original,
             rename_columns=rename_columns,
+            allow_reject=allow_reject,
         )
         return self._with_prepared_steps(self._steps + [step])
 
