@@ -15,6 +15,7 @@ from sklearn.preprocessing import FunctionTransformer, OneHotEncoder
 from sklearn.utils._testing import skip_if_no_parallel
 from sklearn.utils.fixes import parse_version
 
+from skrub import _dataframe as sbd
 from skrub._datetime_encoder import DatetimeEncoder
 from skrub._gap_encoder import GapEncoder
 from skrub._minhash_encoder import MinHashEncoder
@@ -172,7 +173,7 @@ def test_fit_default_transform():
     expected_transformers_types = {}
     for c in X.columns:
         if c in ["int", "float"]:
-            expected_transformers_types[c] = "ToFloat32"
+            expected_transformers_types[c] = "PassThrough"
         elif c in low_cardinality_cols:
             expected_transformers_types[c] = "OneHotEncoder"
         else:
@@ -223,10 +224,10 @@ X_tuples = [
     (
         _get_clean_dataframe(),
         {
-            "int": "Int64",
-            "float": "Float64",
-            "str1": "category",
-            "str2": "category",
+            "int": "float32",
+            "float": "float32",
+            "str1": "O",
+            "str2": "O",
             "cat1": "category",
             "cat2": "category",
         },
@@ -234,8 +235,8 @@ X_tuples = [
     (
         _get_dirty_dataframe("category"),
         {
-            "int": "Int64",
-            "float": "Float64",
+            "int": "float32",
+            "float": "float32",
             "str1": "category",
             "str2": "category",
             "cat1": "category",
@@ -251,7 +252,6 @@ def passthrough_vectorizer():
         low_cardinality_transformer="passthrough",
         numeric_transformer="passthrough",
         datetime_transformer="passthrough",
-        remainder_transformer="passthrough",
     )
 
 
@@ -272,8 +272,8 @@ def test_auto_cast_missing_categories():
     out = vectorizer.fit_transform(X)
 
     expected_type_per_column = {
-        "int": "Int64",
-        "float": "Float64",
+        "int": "float32",
+        "float": "float32",
         "str1": pd.CategoricalDtype(
             categories=["private", "public"],
         ),
@@ -298,52 +298,25 @@ def test_auto_cast_missing_categories():
     assert dict(out.dtypes) == expected_type_per_column
 
 
-assert_tuples = [
-    (
-        dict(remainder_transformer="passthrough"),
-        [
-            "int",
-            "float",
-            "str1_public",
-            "str2_chef",
-            "str2_lawyer",
-            "str2_manager",
-            "str2_officer",
-            "str2_teacher",
-            "cat1_yes",
-            "cat2_20K+",
-            "cat2_30K+",
-            "cat2_40K+",
-            "cat2_50K+",
-            "cat2_60K+",
-        ],
-    ),
-    (
-        dict(remainder_transformer="drop"),
-        [
-            "int",
-            "float",
-            "str1_public",
-            "str2_chef",
-            "str2_lawyer",
-            "str2_manager",
-            "str2_officer",
-            "str2_teacher",
-            "cat1_yes",
-            "cat2_20K+",
-            "cat2_30K+",
-            "cat2_40K+",
-            "cat2_50K+",
-            "cat2_60K+",
-        ],
-    ),
-]
-
-
-@pytest.mark.parametrize("params, expected_features", assert_tuples)
-def test_get_feature_names_out(params, expected_features):
+def test_get_feature_names_out():
+    expected_features = [
+        "int",
+        "float",
+        "str1_public",
+        "str2_chef",
+        "str2_lawyer",
+        "str2_manager",
+        "str2_officer",
+        "str2_teacher",
+        "cat1_yes",
+        "cat2_20K+",
+        "cat2_30K+",
+        "cat2_40K+",
+        "cat2_50K+",
+        "cat2_60K+",
+    ]
     X = _get_clean_dataframe()
-    vectorizer = TableVectorizer(**params).fit(X)
+    vectorizer = TableVectorizer().fit(X)
     assert_array_equal(
         vectorizer.get_feature_names_out(),
         expected_features,
@@ -475,10 +448,10 @@ def test_mixed_types():
     vectorizer = TableVectorizer()
     vectorizer.fit(X)
     expected_transformer_types = {
-        "int_str": "ToFloat32",
-        "float_str": "ToFloat32",
-        "int_float": "ToFloat32",
-        "bool_str": "Drop",
+        "int_str": "PassThrough",
+        "float_str": "PassThrough",
+        "int_float": "PassThrough",
+        "bool_str": "OneHotEncoder",
     }
     transformer_types = {
         k: v.__class__.__name__ for k, v in vectorizer.transformers_.items()
@@ -544,7 +517,7 @@ def test_changing_types(X_train, X_test, expected_X_out):
 def test_changing_types_int_float() -> None:
     """
     The TableVectorizer shouldn't cast floats to ints
-    even if only ints were seen during fit
+    even if only ints were seen during fit.
     """
     X_train = pd.DataFrame([[1.1], [2], [3]], columns=["a"])
     X_test = pd.DataFrame([[1], [2], [3.3]], columns=["a"])
@@ -641,7 +614,7 @@ def test_wrong_transformer():
 
 invalid_tuples = [
     (1, TypeError, r".*Only pandas and polars DataFrames.*"),
-    (np.array([1]), ValueError, r".*wrong shape.*"),
+    (np.array([1]), ValueError, r".*incompatible shape.*"),
     (pd.DataFrame([1], dtype="Sparse[int]"), TypeError, r".*sparse Pandas series.*"),
     (pd.Series([1, 2], name="S"), TypeError, r".*Only pandas and polars DataFrames.*"),
     (csr_matrix([1]), TypeError, r".*Only pandas and polars DataFrames.*"),
@@ -693,7 +666,9 @@ def test_specific_transformers():
             ]
         ).fit_transform(df)
 
-    with pytest.raises(ValueError, match="Expected a list of .* pairs"):
+    with pytest.raises(
+        ValueError, match="'specific_transformers' must be a list .* pairs"
+    ):
         TableVectorizer(
             specific_transformers=[("name", "passthrough", ["a1", "b1"])]
         ).fit_transform(df)
@@ -722,3 +697,24 @@ def test_numberlike_categories():
     # transform and end up treating numbers as categories
     df = pd.DataFrame(dict(a=pd.Series(["0", "1"], dtype="category")))
     TableVectorizer().fit(df).transform(df)
+
+
+def test_bad_specific_cols():
+    with pytest.raises(
+        ValueError, match=".* must be a list of .transformer, list of columns."
+    ):
+        TableVectorizer(specific_transformers=[(None, "a")]).fit(None)
+    with pytest.raises(
+        ValueError, match="Column names in 'specific_transformers' must be strings"
+    ):
+        TableVectorizer(specific_transformers=[(None, [0])]).fit(None)
+
+
+def test_supervised_encoder(df_module):
+    TargetEncoder = pytest.importorskip("sklearn.preprocessing.TargetEncoder")
+    # test that the vectorizer works correctly with encoders that need y (none
+    # of the defaults encoders do)
+    X = df_module.make_dataframe({"a": [f"c_{i}" for _ in range(5) for i in range(4)]})
+    y = np.random.default_rng(0).normal(size=sbd.shape(X)[0])
+    tv = TableVectorizer(low_cardinality_transformer=TargetEncoder())
+    tv.fit_transform(X, y)

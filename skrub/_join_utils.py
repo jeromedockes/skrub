@@ -154,9 +154,12 @@ def pick_column_names(suggested_names, forbidden_names=()):
     A tag ``__skrub_<random string>__`` is added at the end of columns that
     would otherwise be duplicates.
 
-    Any similar tag already present in any of the column names is shifted to
-    the end of the column name. When there are duplicates, the first (leftmost)
-    occurrence is the one left unchanged.
+    If a single similar tag is present in a column name, it is shifted to the
+    end of the column name. (If there are several they are removed, or replaced
+    by a new one if necessary.)
+
+    When there are duplicates, the first (leftmost) occurrence is the one left
+    unchanged.
 
     We can pass a list of forbidden names, in which case names will also be
     tagged if they appear in the forbidden names (regardless of whether they
@@ -190,6 +193,8 @@ def pick_column_names(suggested_names, forbidden_names=()):
     ['A__skrub_37dd63aa__', 'B__skrub_21e27e1e__']
     >>> pick_column_names(["concat_A__skrub_750a0b7c___A__skrub_b1eeb4f7__"]) # doctest: +SKIP
     ['concat_A_A']
+
+    # noqa
     """
     all_new_names = []
     forbidden_names = set(forbidden_names)

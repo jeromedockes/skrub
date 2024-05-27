@@ -18,7 +18,8 @@ from ._multi_agg_joiner import MultiAggJoiner
 from ._select_cols import DropCols, SelectCols
 from ._similarity_encoder import SimilarityEncoder
 from ._table_vectorizer import TableVectorizer
-from ._to_datetime import to_datetime
+from ._to_categorical import ToCategorical
+from ._to_datetime import ToDatetime, to_datetime
 
 check_dependencies()
 
@@ -28,6 +29,7 @@ with open(_Path(__file__).parent / "VERSION.txt") as _fh:
 
 __all__ = [
     "DatetimeEncoder",
+    "ToDatetime",
     "Joiner",
     "fuzzy_join",
     "GapEncoder",
@@ -37,6 +39,7 @@ __all__ = [
     "TableVectorizer",
     "deduplicate",
     "compute_ngram_distance",
+    "ToCategorical",
     "to_datetime",
     "AggJoiner",
     "MultiAggJoiner",
