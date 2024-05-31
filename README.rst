@@ -21,6 +21,7 @@
 library that facilitates prepping your tables for machine learning.
 
 If you like the package, spread the word and ⭐ this repository!
+You can also join the `discord server <https://discord.gg/ABaPnm7fDC>`_.
 
 What can `skrub` do?
 --------------------
@@ -75,10 +76,6 @@ Dependencies
 
 Dependencies and minimal versions are listed in the `setup <https://github.com/skrub-data/skrub/blob/main/setup.cfg#L27>`_ file.
 
-Related projects
-----------------
-
-Are listed on the `skrub's website <https://skrub-data.github.io/stable/#related-projects>`_
 
 Contributing
 ------------
