@@ -137,6 +137,7 @@ class PipeBuilder:
         memory=None,
         preview_sample_size=2000,
         random_seed=0,
+        shuffle_split=True,
     ):
         self.input_data = input_data
         self.y_cols = y_cols
@@ -148,6 +149,7 @@ class PipeBuilder:
         self.memory = memory
         self.preview_sample_size = preview_sample_size
         self.random_seed = random_seed
+        self.shuffle_split = shuffle_split
         self._steps = [
             Step(
                 estimator=Drop(),
@@ -238,7 +240,6 @@ class PipeBuilder:
     def _transform_preview(self, sampling_method, n=None):
         if self.input_data is None:
             return None
-        n = self.preview_sample_size if n is None else n
         df = self._get_sampler(sampling_method)(n)
         pipeline = self.get_pipeline(False)
         if not pipeline.steps:
@@ -259,13 +260,18 @@ class PipeBuilder:
             return df, []
         return df, pipeline.steps[-1][1].created_outputs_
 
+    def _check_n(self, n):
+        if n is None:
+            n = self.preview_sample_size
+        elif n == -1:
+            n = self.input_data_shape[0]
+        return min(n, self.input_data_shape[0])
+
     def _random_sample(self, n):
-        return sbd.sample(
-            self.input_data, min(n, self.input_data_shape[0]), seed=self.random_seed
-        )
+        return sbd.sample(self.input_data, self._check_n(n), seed=self.random_seed)
 
     def _head_sample(self, n):
-        return sbd.head(self.input_data, n=n)
+        return sbd.head(self.input_data, n=self._check_n(n))
 
     def _get_sampler(self, sampling_method):
         return {"head": self._head_sample, "random": self._random_sample}[
@@ -287,12 +293,16 @@ class PipeBuilder:
 
     def get_x_train(self):
         x = self.get_x()
-        x_train, _ = train_test_split(x, random_state=self.random_seed)
+        x_train, _ = train_test_split(
+            x, random_state=self.random_seed, shuffle=self.shuffle_split
+        )
         return x_train
 
     def get_x_test(self):
         x = self.get_x()
-        _, x_test = train_test_split(x, random_state=self.random_seed)
+        _, x_test = train_test_split(
+            x, random_state=self.random_seed, shuffle=self.shuffle_split
+        )
         return x_test
 
     def get_y(self):
@@ -305,12 +315,16 @@ class PipeBuilder:
 
     def get_y_train(self):
         y = self.get_y()
-        y_train, _ = train_test_split(y, random_state=self.random_seed)
+        y_train, _ = train_test_split(
+            y, random_state=self.random_seed, shuffle=self.shuffle_split
+        )
         return y_train
 
     def get_y_test(self):
         y = self.get_y()
-        _, y_test = train_test_split(y, random_state=self.random_seed)
+        _, y_test = train_test_split(
+            y, random_state=self.random_seed, shuffle=self.shuffle_split
+        )
         return y_test
 
     def get_report(
