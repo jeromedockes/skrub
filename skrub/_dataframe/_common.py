@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 import pandas as pd
@@ -33,6 +33,7 @@ __all__ = [
     "null_value_for",
     "all_null_like",
     "concat_horizontal",
+    "is_column_list",
     "to_column_list",
     "col",
     "collect",
@@ -45,6 +46,7 @@ __all__ = [
     "rename",
     "set_column_names",
     "reset_index",
+    "copy_index",
     "index",
     #
     # Inspecting dtypes and casting
@@ -314,12 +316,22 @@ def _concat_horizontal_polars(*dataframes):
     return pl.concat(dataframes, how="horizontal")
 
 
+def is_column_list(obj):
+    if not isinstance(obj, Sequence):
+        return False
+    if not len(obj):
+        return True
+    if is_column(obj[0]):
+        return True
+    return False
+
+
 def to_column_list(obj):
     if is_column(obj):
         return [obj]
     if is_dataframe(obj):
         return [col(obj, c) for c in column_names(obj)]
-    if not hasattr(obj, "__iter__") or (len(obj) and not is_column(next(iter(obj)))):
+    if not is_column_list(obj):
         raise TypeError("obj should be a DataFrame, a Column or a list of Columns.")
     return obj
 
@@ -443,6 +455,30 @@ def reset_index(obj):
 @reset_index.specialize("pandas")
 def _reset_index_pandas(obj):
     return obj.reset_index(drop=True)
+
+
+@dispatch
+def _set_index(obj, index):
+    return obj
+
+
+@_set_index.specialize("pandas")
+def _set_index_pandas(obj, index):
+    if index is None:
+        return obj
+    return obj.set_axis(index, axis="index")
+
+
+def copy_index(source, target):
+    """Copy index from source to target.
+
+    If both are pandas dataframes or series, returns a new object which is
+    identical to `target` but with the index of `source`. `target` itself is
+    not modified.
+
+    If either is not a pandas object, return `target` itself (unchanged).
+    """
+    return _set_index(target, index(source))
 
 
 @dispatch
