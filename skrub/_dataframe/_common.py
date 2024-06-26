@@ -80,10 +80,12 @@ __all__ = [
     "fill_nulls",
     "n_unique",
     "unique",
+    "filter",
     "where",
     "sample",
     "head",
     "replace",
+    "with_columns",
 ]
 
 #
@@ -934,6 +936,21 @@ def _unique_polars(col):
 
 
 @dispatch
+def filter(obj, predicate):
+    raise NotImplementedError()
+
+
+@filter.specialize("pandas")
+def _filter_pandas(obj, predicate):
+    return obj[predicate]
+
+
+@filter.specialize("polars")
+def _filter_polars(obj, predicate):
+    return obj.filter(predicate)
+
+
+@dispatch
 def where(col, mask, other):
     raise NotImplementedError()
 
@@ -991,3 +1008,9 @@ def _replace_pandas(col, old, new):
 @replace.specialize("polars", argument_type="Column")
 def _replace_polars(col, old, new):
     return col.replace(old, new)
+
+
+def with_columns(df, **new_cols):
+    cols = {col_name: col(df, col_name) for col_name in column_names(df)}
+    cols.update({n: make_column_like(df, c, n) for n, c in new_cols.items()})
+    return make_dataframe_like(df, cols)

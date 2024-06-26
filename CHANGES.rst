@@ -14,6 +14,8 @@ It is currently undergoing fast development and backward compatibility is not en
 
 Major changes
 -------------
+* The :class:`Joiner` has been adapted to support polars dataframes. :pr:`945` by :user:`Théo Jolivet <TheooJ>`.
+
 * The :class:`TableVectorizer` now consistently applies the same transformation
   across different calls to `transform`. There also have been some breaking
   changes to its functionality: (i) all transformations are now applied
@@ -21,6 +23,12 @@ Major changes
   transformations (ii) in ``specific_transformers`` the same column may not be
   used twice (go through 2 different transformers).
   :pr:`902` by :user:`Jérôme Dockès <jeromedockes>`.
+
+* Some parameters of :class:`TableVectorizer` have been renamed:
+  `high_cardinality_transformer` → `high_cardinality`,
+  `low_cardinality_transformer` → `low_cardinality`,
+  `datetime_transformer` → `datetime`, `numeric_transformer` → `numeric`.
+  :pr:`947` by :user:`Jérôme Dockès <jeromedockes>`.
 
 * The :class:`GapEncoder` and :class:`MinHashEncoder` are now a single-column
   transformers: their ``fit``, ``fit_transform`` and ``transform`` methods
@@ -57,6 +65,11 @@ Minor changes
 * :func:`~datasets.fetch_ken_embeddings` now add suffix even with the default
   value for the parameter `pca_components`.
   :pr:`956` by :user:`Guillaume Lemaitre <glemaitre>`.
+
+* :class:`Joiner` now performs some preprocessing (the same as done by the
+  :class:`TableVectorizer`, eg trying to parse dates, converting pandas object
+  columns with mixed types to a single type) on the joining columns before
+  vectorizing them. :pr:`972` by :user:`Jérôme Dockès <jeromedockes>`.
 
 skrub release 0.1.0
 ===================
