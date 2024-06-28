@@ -345,10 +345,14 @@ class PipeBuilder:
             )
         else:
             column_filters = {
-                "Created or modified by last step": last_step_cols,
-                "Not created or modified by last step": (
-                    ~s.cols(*last_step_cols)
-                ).expand(data),
+                "last_step_output": {
+                    "display_name": "Modified by last step",
+                    "columns": last_step_cols,
+                },
+                "~last_step_output": {
+                    "display_name": "Not modified by last step",
+                    "columns": (~s.cols(*last_step_cols)).expand(data),
+                },
             }
         return skrubview.Report(data, order_by=order_by, column_filters=column_filters)
 
