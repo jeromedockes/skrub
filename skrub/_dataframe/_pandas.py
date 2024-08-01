@@ -71,7 +71,7 @@ def aggregate(
 
     named_agg = {**num_named_agg, **categ_named_agg}
     if named_agg:
-        base_group = table.groupby(key).agg(**named_agg)
+        base_group = table.groupby(key).agg(**named_agg).reset_index(drop=False)
     else:
         base_group = None
 
@@ -105,7 +105,7 @@ def aggregate(
     ]
     sorted_cols = sorted(base_group.columns)
 
-    return base_group[sorted_cols].reset_index(drop=False)
+    return base_group[sorted_cols]
 
 
 def get_named_agg(table, cols, operations):
