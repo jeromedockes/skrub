@@ -178,11 +178,6 @@ html_theme_options = {
             "url": "https://github.com/skrub-data/skrub/",
             "icon": "fa-brands fa-github",
         },
-        {
-            "name": "PyPI",
-            "url": "https://pypi.org/project/skrub",
-            "icon": "fa-custom fa-pypi",
-        },
     ],
     # alternative way to set twitter and github header icons
     # "github_url": "https://github.com/pydata/pydata-sphinx-theme",
@@ -198,17 +193,20 @@ html_theme_options = {
     ),
     # "show_nav_level": 2,
     # "navbar_start": ["navbar-logo"],
-    # "navbar_end": ["theme-switcher", "navbar-icon-links"],
+    "navbar_end": ["version-switcher", "theme-switcher", "navbar-icon-links"],
     # "navbar_persistent": ["search-button"],
     # "primary_sidebar_end": ["custom-template.html", "sidebar-ethical-ads.html"],
     # "article_footer_items": ["prev-next.html", "test.html", "test.html"],
     # "content_footer_items": ["prev-next.html", "test.html", "test.html"],
     # "footer_start": ["test.html", "test.html"],
     # "secondary_sidebar_items": ["index.html"],  # Remove the source buttons
-    # "switcher": {
-    #     "json_url": json_url,
-    #     "version_match": version_match,
-    # },
+    "switcher": {
+        "json_url": (
+            "https://raw.githubusercontent.com/skrub-data/skrub/main/doc/version.json"
+        ),
+        "version_match": "dev",
+    },
+    "show_version_warning_banner": True,
 }
 
 # Additional templates that should be rendered to pages, maps page names to
@@ -221,6 +219,15 @@ html_context = {
     "github_repo": "skrub",
     "github_version": "main",
     "doc_path": "doc",
+}
+
+# Custom sidebar templates, maps document names to template names.
+# Workaround for removing the left sidebar on pages without TOC
+# A better solution would be to follow the merge of:
+# https://github.com/pydata/pydata-sphinx-theme/pull/1682
+html_sidebars = {
+    "install": [],
+    "CHANGES": [],
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -375,10 +382,8 @@ def notebook_modification_function(notebook_content, notebook_filename):
         [
             "import micropip",
             (
-                "await micropip.install("
-                "'https://test-files.pythonhosted.org/packages/3c/03/"
-                "e1598c7abe536e56834f568f61497ad075d966c4c8fb7d0ad004b81e7bfc/"
-                "skrub-0.0.1.dev1-py3-none-any.whl')"
+                "await"
+                " micropip.install('https://files.pythonhosted.org/packages/eb/6d/0e78d028591bedd9580e49ae1060d9faf7fb4503e1db54227616db8f359d/skrub-0.2.0rc1-py3-none-any.whl')"
             ),
         ]
     )
@@ -431,6 +436,7 @@ sphinx_gallery_conf = {
         "dependencies": "./binder/requirements.txt",
         "use_jupyter_lab": True,
     },
+    "default_thumb_file": "./_static/skrub.svg",
 }
 if with_jupyterlite:
     sphinx_gallery_conf["jupyterlite"] = {

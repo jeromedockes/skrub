@@ -1,16 +1,41 @@
 .. _changes:
 
-========
-Changes
-========
+===============
+Release history
+===============
 
 .. currentmodule:: skrub
 
 Ongoing development
-=====================
+===================
 
 Skrub is a very recent package.
 It is currently undergoing fast development and backward compatibility is not ensured.
+
+Major changes
+-------------
+* The :class:`InterpolationJoiner` now supports polars dataframes. :pr:`1016`
+  by :user:`Théo Jolivet <TheooJ>`.
+* The :class:`TableReport` provides an interactive report on a dataframe's
+  contents: an overview, summary statistics and plots, statistical associations
+  between columns. It can be displayed in a jupyter notebook, a browser tab or
+  saved as a static HTML page. :pr:`984` by :user:`Jérôme Dockès <jeromedockes>`.
+
+Minor changes
+-------------
+* :class:`Joiner` and :func:`fuzzy_join` used to raise an error when columns
+  with the same name appeared in the main and auxiliary table (after adding the
+  suffix). This is now allowed and a random string is inserted in the duplicate
+  column to ensure all names are unique.
+  :pr:`1014` by :user:`Jérôme Dockès <jeromedockes>`.
+
+* :class:`AggJoiner` and :class:`AggTarget` could produce outputs whose column
+  names varied across calls to `transform` in some cases in the presence of
+  duplicate column names, now the output names are always the same.
+  :pr:`1013` by :user:`Jérôme Dockès <jeromedockes>`.
+
+Release 0.2.0
+=============
 
 Major changes
 -------------
@@ -70,6 +95,13 @@ Minor changes
   :class:`TableVectorizer`, eg trying to parse dates, converting pandas object
   columns with mixed types to a single type) on the joining columns before
   vectorizing them. :pr:`972` by :user:`Jérôme Dockès <jeromedockes>`.
+
+skrub release 0.1.1
+===================
+
+This is a bugfix release to adapt to the most recent versions of pandas (2.2) and
+scikit-learn (1.5). There are no major changes to the functionality of skrub.
+
 
 skrub release 0.1.0
 ===================

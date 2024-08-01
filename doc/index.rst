@@ -1,14 +1,17 @@
+.. title:: Home
 
 .. toctree::
    :maxdepth: 2
 
 .. currentmodule:: skrub
 
-
 .. toctree::
    :hidden:
 
    install
    documentation
-   api
+   reference/index
    auto_examples/index
+   CHANGES
+   development
+   CONTRIBUTING

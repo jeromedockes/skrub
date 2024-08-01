@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skrub"
-version = "0.2.0.dev0"
+dynamic = ["version", "readme"]
 description = "Prepping tables for machine learning"
 authors = [
     { name="Patricio Cerda", email="patricio.cerda@inria.fr"},
@@ -22,7 +22,6 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Libraries",
 ]
-readme = "README.rst"
 requires-python = ">=3.9"
 dependencies = [
     "numpy>=1.23.5",
@@ -30,13 +29,18 @@ dependencies = [
     "pandas>=1.5.3",
     "scikit-learn>=1.2.1",
     "scipy>=1.9.3",
+    "jinja2>=3.1.2",
+    "matplotlib>=3.4.3",
 ]
+
+[tool.setuptools.dynamic]
+version = { file = "skrub/VERSION.txt" }
+readme = { file = "README.rst" }
 
 [project.optional-dependencies]
 doc = [
     "jupyterlite-sphinx",
     "jupyterlite-pyodide-kernel",
-    "matplotlib",
     "numpydoc",
     "pydata-sphinx-theme",
     "seaborn",
@@ -80,6 +84,8 @@ packaging = ">=23.1"
 pandas = ">=1.5.3"
 scikit-learn = ">=1.2.1"
 scipy = ">=1.9.3"
+jinja2 = ">=3.1.2"
+matplotlib = ">=3.4.3"
 
 [tool.pixi.feature.doc.dependencies]
 jupyterlite-sphinx = "*"
@@ -117,6 +123,8 @@ numpy = "==1.23.5"
 pandas = "==1.5.3"
 scikit-learn = "==1.2.1"
 scipy = "==1.9.3"
+jinja2 = "==3.1.2"
+matplotlib = "==3.4.3"
 
 [tool.pixi.feature.min-optional-dependencies.dependencies]
 pyarrow = "==15.0.2"
@@ -225,7 +233,8 @@ filterwarnings = [
     'ignore:(?s).*Pyarrow will become a required dependency of pandas.*:DeprecationWarning',
     # accessing .values on a pandas dataframe raises this warning after numpy 1.25;
     # should be addressed in pandas
-    'ignore:np.find_common_type is deprecated.*:DeprecationWarning'
+    'ignore:np.find_common_type is deprecated.*:DeprecationWarning',
+    'ignore:.*distutils Version classes are deprecated.*',
 ]
 addopts = "--doctest-modules"
 doctest_optionflags = "NORMALIZE_WHITESPACE ELLIPSIS"
