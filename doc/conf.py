@@ -361,7 +361,7 @@ def notebook_modification_function(notebook_content, notebook_filename):
     else:
         message_class = "warning"
         message = (
-            "Running the skrub examples in JupyterLite is experimental and you may"
+            "Running the skrub examples in JupyterLite is experimental and you may "
             "encounter some unexpected behavior.\n\n"
             "The main difference is that imports will take a lot longer than usual, "
             "for example the first `import skrub` can take roughly 10-20s.\n\n"
