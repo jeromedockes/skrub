@@ -13,6 +13,7 @@ from . import _dataframe as sbd
 from . import _join_utils
 from . import selectors as s
 from ._parallel_plot import DEFAULT_COLORSCALE, plot_parallel_coord
+from ._reporting import TableReport
 from ._select_cols import Drop
 from ._tuning import (
     Choice,
@@ -34,6 +35,8 @@ from ._wrap_transformer import wrap_transformer
 
 __all__ = [
     "PipeBuilder",
+    "Chain",
+    "Recipe",
     "choose_from",
     "optional",
     "choose_float",
@@ -135,7 +138,7 @@ class PipeBuilder:
         y_cols=(),
         n_jobs=None,
         memory=None,
-        preview_sample_size=2000,
+        preview_sample_size=500,
         random_seed=0,
         shuffle_split=True,
     ):
@@ -330,12 +333,6 @@ class PipeBuilder:
     def get_report(
         self, order_by=None, sampling_method="random", n=None, last_step_only=False
     ):
-        try:
-            import skrubview
-        except ImportError:
-            print("Please install skrubview")
-            return None
-
         if (transform_result := self._transform_preview(sampling_method, n=n)) is None:
             return None
         data, last_step_cols = transform_result
@@ -354,7 +351,13 @@ class PipeBuilder:
                     "columns": (~s.cols(*last_step_cols)).expand(data),
                 },
             }
-        return skrubview.Report(data, order_by=order_by, column_filters=column_filters)
+        title = (
+            f"Preview {'of last step output' if last_step_only else ''} on"
+            f" {sbd.shape(data)[0]} rows"
+        )
+        return TableReport(
+            data, order_by=order_by, column_filters=column_filters, title=title
+        )
 
     def get_param_grid_description(self):
         return grid_description(self.get_param_grid())
@@ -554,3 +557,16 @@ def _get_all_param_names(grid):
                 k = v.name
             names[k] = None
     return list(names)
+
+
+# Aliases until we settle on a name:
+
+
+class Recipe(PipeBuilder):
+    pass
+
+
+class Chain(PipeBuilder):
+    @property
+    def add(self):
+        return self.apply
