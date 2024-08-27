@@ -460,26 +460,15 @@ class PipeBuilder:
     def __repr__(self):
         n_steps = len(self._steps)
         predictor_info = ""
-        step_names = self._get_step_names()
         if self._has_predictor():
             n_steps -= 1
             predictor_info = " + predictor"
-        step_descriptions = [f"{i}: {name}" for i, name in enumerate(step_names)]
-        pipe_description = (
-            f"<{self.__class__.__name__}: {n_steps} transformations{predictor_info}>"
-            + (f"\nSteps:\n{', '.join(step_descriptions)}" if self._steps else "")
+        title = (
+            f"{self.__class__.__name__} with {n_steps} transformations{predictor_info}"
         )
-        if self.input_data is None:
-            return pipe_description
-        try:
-            data_repr = repr(self.sample())
-            return f"{pipe_description}\nSample of transformed data:\n{data_repr}"
-        except Exception as e:
-            return (
-                f"{pipe_description}\n{e}Note:\n    Use `.sample()` to trigger the"
-                " error again and see the full traceback.\n    You can remove steps"
-                " from the pipeline with `.truncated(step)`."
-            )
+        underline = "-" * len(title)
+        description = self.get_pipeline_description()
+        return f"{title}\n{underline}\n{description}"
 
     def apply(self, *args, **kwargs):
         return self.add(*args, **kwargs)
