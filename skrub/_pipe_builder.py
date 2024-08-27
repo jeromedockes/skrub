@@ -54,6 +54,12 @@ def _camel_to_snake(name):
     return name.lower()
 
 
+def _squeeze(df):
+    if sbd.shape(df)[1] == 1:
+        return sbd.col(df, sbd.column_names(df)[0])
+    return df
+
+
 @dataclasses.dataclass
 class Step:
     estimator: Any
@@ -247,7 +253,7 @@ class PipeBuilder:
         pipeline = self.get_pipeline(False)
         if not pipeline.steps:
             return df, []
-        y = s.select(df, self.y_cols)
+        y = _squeeze(s.select(df, self.y_cols))
         for step_name, transformer in pipeline.steps:
             if not _is_passthrough(transformer):
                 try:
@@ -290,8 +296,6 @@ class PipeBuilder:
         return data
 
     def get_x(self):
-        if self.input_data is None:
-            return None
         return s.select(self.input_data, s.all() - self.y_cols)
 
     def get_x_train(self):
@@ -309,11 +313,7 @@ class PipeBuilder:
         return x_test
 
     def get_y(self):
-        if self.input_data is None:
-            return None
-        y = s.select(self.input_data, s.all() & self.y_cols)
-        if sbd.shape(y)[1] == 1:
-            y = sbd.col(y, sbd.column_names(y)[0])
+        y = _squeeze(s.select(self.input_data, self.y_cols))
         return y
 
     def get_y_train(self):

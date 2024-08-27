@@ -25,7 +25,7 @@ from ._pipe_builder import (
     optional,
 )
 from ._reporting import TableReport
-from ._select_cols import DropCols, SelectCols
+from ._select_cols import Drop, DropCols, SelectCols
 from ._similarity_encoder import SimilarityEncoder
 from ._table_vectorizer import TableVectorizer
 from ._tabular_learner import tabular_learner
@@ -59,6 +59,7 @@ __all__ = [
     "AggTarget",
     "SelectCols",
     "DropCols",
+    "Drop",
     "selectors",
     "RejectColumn",
     "PipeBuilder",
