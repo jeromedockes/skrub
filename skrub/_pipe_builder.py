@@ -481,7 +481,10 @@ class PipeBuilder:
                 " from the pipeline with `.truncated(step)`."
             )
 
-    def apply(
+    def apply(self, *args, **kwargs):
+        return self.add(*args, **kwargs)
+
+    def add(
         self,
         estimator,
         cols=s.all(),
@@ -512,7 +515,7 @@ class PipeBuilder:
         return self._with_prepared_steps(self._steps + [step])
 
     def drop(self, cols, name=None):
-        return self.apply(Drop(), cols=cols, name=name)
+        return self.add(Drop(), cols=cols, name=name)
 
     def select(self, cols, name=None):
         return self.drop(s.inv(cols), name=name)
@@ -567,6 +570,4 @@ class Recipe(PipeBuilder):
 
 
 class Chain(PipeBuilder):
-    @property
-    def add(self):
-        return self.apply
+    pass
