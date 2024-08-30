@@ -209,6 +209,7 @@ class Recipe:
         ]
 
     def _with_prepared_steps(self, steps):
+        """Return a new Recipe object with the specified steps."""
         new = self.__class__(
             input_data=self.input_data,
             y_cols=self.y_cols,
@@ -221,6 +222,11 @@ class Recipe:
         return new
 
     def _has_predictor(self):
+        """Whether the Recipe has a final predictor or only transformers.
+
+        This is used to raise when the user tries to add steps after the
+        predictor.
+        """
         if not self._steps:
             return False
         return hasattr(unwrap_default(self._steps[-1].estimator), "predict")
@@ -511,9 +517,6 @@ class Recipe:
         description = self.get_pipeline_description()
         return f"{title}\n{underline}\n{description}"
 
-    def apply(self, *args, **kwargs):
-        return self.add(*args, **kwargs)
-
     def add(
         self,
         estimator,
@@ -543,12 +546,6 @@ class Recipe:
             allow_reject=allow_reject,
         )
         return self._with_prepared_steps(self._steps + [step])
-
-    def drop(self, cols, name=None):
-        return self.add(Drop(), cols=cols, name=name)
-
-    def select(self, cols, name=None):
-        return self.drop(s.inv(cols), name=name)
 
 
 def _describe_choice(choice, buf):
