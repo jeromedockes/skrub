@@ -15,9 +15,7 @@ from ._interpolation_joiner import InterpolationJoiner
 from ._joiner import Joiner
 from ._minhash_encoder import MinHashEncoder
 from ._multi_agg_joiner import MultiAggJoiner
-from ._pipe_builder import (
-    Chain,
-    PipeBuilder,
+from ._recipe import (
     Recipe,
     choose_float,
     choose_from,
@@ -62,9 +60,7 @@ __all__ = [
     "Drop",
     "selectors",
     "RejectColumn",
-    "PipeBuilder",
     "Recipe",
-    "Chain",
     "choose_from",
     "optional",
     "choose_float",

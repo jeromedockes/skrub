@@ -34,8 +34,6 @@ from ._tuning import (
 from ._wrap_transformer import wrap_transformer
 
 __all__ = [
-    "PipeBuilder",
-    "Chain",
     "Recipe",
     "choose_from",
     "optional",
@@ -137,7 +135,7 @@ def _to_estimator(step, n_jobs):
     return _check_estimator(estimator, step, n_jobs)
 
 
-class PipeBuilder:
+class Recipe:
     def __init__(
         self,
         input_data=None,
@@ -549,14 +547,3 @@ def _get_all_param_names(grid):
                 k = v.name
             names[k] = None
     return list(names)
-
-
-# Aliases until we settle on a name:
-
-
-class Recipe(PipeBuilder):
-    pass
-
-
-class Chain(PipeBuilder):
-    pass
