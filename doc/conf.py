@@ -199,7 +199,13 @@ html_theme_options = {
     # "article_footer_items": ["prev-next.html", "test.html", "test.html"],
     # "content_footer_items": ["prev-next.html", "test.html", "test.html"],
     # "footer_start": ["test.html", "test.html"],
-    # "secondary_sidebar_items": ["index.html"],  # Remove the source buttons
+    # When specified as a dictionary, the keys should follow glob-style patterns, as in
+    # https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-exclude_patterns
+    # In particular, "**" specifies the default for all pages
+    # Use :html_theme.sidebar_secondary.remove: for file-wide removal
+    "secondary_sidebar_items": {
+        "**": ["page-toc", "sourcelink", "sg_download_links", "sg_launcher_links"]
+    },
     "switcher": {
         "json_url": (
             "https://raw.githubusercontent.com/skrub-data/skrub/main/doc/version.json"
@@ -324,7 +330,7 @@ intersphinx_mapping = {
     "mayavi": ("http://docs.enthought.com/mayavi/mayavi", None),
     "statsmodels": ("https://www.statsmodels.org/stable", None),
     "pandas": ("http://pandas.pydata.org/pandas-docs/stable", None),
-    "polars": ("https://pola-rs.github.io/polars/py-polars/html", None),
+    "polars": ("https://docs.pola.rs/py-polars/html", None),
     "seaborn": ("http://seaborn.pydata.org", None),
 }
 
@@ -413,7 +419,7 @@ def notebook_modification_function(notebook_content, notebook_filename):
 
 sphinx_gallery_conf = {
     "doc_module": "skrub",
-    "backreferences_dir": os.path.join("generated"),
+    "backreferences_dir": os.path.join("reference/generated"),
     "reference_url": {
         # The module we locally document (so, skrub) uses None
         "skrub": None,
