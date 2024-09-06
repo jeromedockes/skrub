@@ -10,30 +10,30 @@ hyperparameters.
 
 It brings 3 major benefits:
 
-- Transformations can be added step by step, and we can get previews of the
-  data transformed with the processing steps we have added so far. This allows
-  us to check the output of the model as we build it, making its development
-  more interactive.
+- The pipeline can be built step by step, while easily checking the output of
+  transformations we have added so far. This makes development faster and more
+  interactive.
 
-- Whenever we add a transformation, we can easily specify on which subset of
-  columns it should be applied. Tabular data is often heterogeneous and a
-  processing step often applies to only some of our dataframe's columns.
+- When we add a transformation, we can easily specify on which columns it
+  should be applied. Tabular data is heterogeneous and many processing steps
+  only apply to some of our dataframe's columns.
 
 - When we add a transformer or a final predictor, we can specify a range for
   any of its parameters, rather than a single value. Thus the ranges of
-  hyperparameters to consider for hyperparameter tuning are provided directly
-  inside the corresponding estimator, instead of being kept in a separate
-  dictionary as is usually done with scikit-learn. Moreover, these
-  hyperparameters can be given arbitrary names which is useful for inspecting
-  hyperparameter search results with human-readable labels.
+  hyperparameters to consider for tuning are provided directly inside the
+  corresponding estimator, instead of being kept in a separate dictionary as is
+  usually done with scikit-learn. Moreover, these hyperparameters can be given
+  human-readable names which are useful for inspecting hyperparameter search
+  results.
 
 The Recipe is not an estimator
 ------------------------------
 
-The recipe is a tool to configure a scikit-learn estimator, it is not an
+The recipe is a tool for configuring a scikit-learn estimator, it is not an
 estimator itself (it does not have `fit` or `predict`) methods. Once we are
-happy with our Recipe, we must call one of its methods such as ``get_pipeline``,
-``get_grid_search``, …, to obtain the corresponding scikit-learn estimator.
+happy with our Recipe, we must call one of its methods such as
+``get_pipeline``, ``get_grid_search``, …, to obtain the corresponding
+scikit-learn estimator.
 
 .. image:: ../_static/recipe-graph.svg
 
@@ -144,7 +144,7 @@ recipe
 randomized_search = recipe.get_randomized_search(n_iter=10, cv=3, verbose=1)
 randomized_search.fit(recipe.get_x_train(), recipe.get_y_train())
 
-recipe.get_cv_results_table(randomized_search)
+# recipe.get_cv_results_table(randomized_search)
 
-# %%
-recipe.plot_parallel_coord(randomized_search)
+# # %%
+# recipe.plot_parallel_coord(randomized_search)
