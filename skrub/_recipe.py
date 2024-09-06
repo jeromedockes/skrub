@@ -179,6 +179,11 @@ def _to_estimator(step, n_jobs):
 
 
 class Recipe:
+    """Build a pipeline with hyperparameter tuning and previews of transformed data.
+
+    TODO
+    """
+
     def __init__(
         self,
         input_data=None,
@@ -410,7 +415,10 @@ class Recipe:
         return grid_description(self.get_param_grid())
 
     def get_pipeline_description(self):
-        return _describe_pipeline(zip(self._get_step_names(), self._steps))
+        step_names = self._get_step_names()
+        first_step = f"{step_names[0]}:\n    if present, drop: {self.y_cols!r}\n"
+        rest = _describe_pipeline(zip(step_names[1:], self._steps[1:]))
+        return first_step + rest
 
     def get_params_description(self, params):
         return params_description(params)
