@@ -1,7 +1,7 @@
 """Get information and plots for a dataframe, that are used to generate reports."""
 
 from .. import _dataframe as sbd
-from . import _associations, _plotting, _utils
+from . import _associations, _plotting, _sample_table, _utils
 
 _HIGH_CARDINALITY_THRESHOLD = 10
 _SUBSAMPLE_SIZE = 3000
@@ -50,6 +50,7 @@ def summarize_dataframe(df, *, order_by=None, with_plots=True, title=None):
         "tail": tail,
         "first_row_dict": _utils.first_row_dict(df) if n_rows else {},
         "dataframe_is_empty": not n_rows or not n_columns,
+        "sample_table": _sample_table.make_table(df),
     }
     if title is not None:
         summary["title"] = title
