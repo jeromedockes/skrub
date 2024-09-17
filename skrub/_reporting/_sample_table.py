@@ -105,8 +105,8 @@ def make_table(df, max_head_rows=5, max_tail_rows=5):
                     c["j"] = j
                     c["elem"] = "th"
                     c["scope"] = "row"
-                    c["column_index"] = j
                     if i == -1:
+                        c["column_idx"] = j
                         c["row_span"] = 2
                     header_row.append(c)
             header["rows"].append(header_row)

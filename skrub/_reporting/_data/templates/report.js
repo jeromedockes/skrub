@@ -43,7 +43,7 @@ if (customElements.get('skrub-table-report') === undefined) {
         matchesColumnFilter({
             acceptedColumns
         }) {
-            return acceptedColumns.has(this.elem.dataset.columnName);
+            return acceptedColumns.has(Number(this.elem.dataset.columnIdx));
         }
     }
 
@@ -129,6 +129,7 @@ if (customElements.get('skrub-table-report') === undefined) {
             super(elem, exchange);
             this.filters = JSON.parse(atob(this.elem.dataset.allFiltersBase64));
             this.elem.addEventListener("change", () => this.onSelectChange());
+            console.log(this.filters);
         }
 
         onSelectChange() {
@@ -195,7 +196,7 @@ if (customElements.get('skrub-table-report') === undefined) {
         }
 
         SAMPLE_TABLE_CELL_ACTIVATED(msg) {
-            if (msg.columnName === this.elem.dataset.columnName) {
+            if (msg.columnIdx === this.elem.dataset.columnIdx) {
                 this.show();
             } else {
                 this.hide();
@@ -250,14 +251,9 @@ if (customElements.get('skrub-table-report') === undefined) {
             const msg = {
                 kind: "SAMPLE_TABLE_CELL_ACTIVATED",
                 cellId: this.elem.id,
-                columnName: this.elem.dataset.columnName,
                 columnIdx: this.elem.dataset.columnIdx,
                 valueStr: this.elem.dataset.valueStr,
                 valueRepr: this.elem.dataset.valueRepr,
-                columnNameStr: this.elem.dataset.colNameStr,
-                columnNameRepr: this.elem.dataset.colNameRepr,
-                dataframeModule: this.elem.dataset.dataframeModule,
-                valueIsNone: "valueIsNone" in this.elem.dataset,
             };
             this.exchange.send(msg);
         }
@@ -294,7 +290,7 @@ if (customElements.get('skrub-table-report') === undefined) {
                 delete this.elem.dataset.isActive;
                 this.elem.setAttribute("tabindex", -1);
             }
-            if (msg.columnName === this.elem.dataset.columnName) {
+            if (msg.columnIdx === this.elem.dataset.columnIdx) {
                 this.elem.dataset.isInActiveColumn = "";
             } else {
                 delete this.elem.dataset.isInActiveColumn;

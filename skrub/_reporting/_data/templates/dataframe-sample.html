@@ -13,9 +13,14 @@
             {% if table_part["name"] == "ellipsis" %}
             <tbody>
                 <tr>
-                {% for i in range(summary["sample_table"]["min_j"], summary["sample_table"]["max_j"])%}
-                <td>⋮</td>
-                {% endfor %}
+                    {% for i in range(summary["sample_table"]["min_j"], summary["sample_table"]["max_j"])%}
+                    <td
+                        {% if i >= 0%}
+                        data-manager="FilterableColumn"
+                        data-column-idx="{{ i }}"
+                        {% endif %}
+                    >⋮</td>
+                    {% endfor %}
                 </tr>
             </tbody>
             {% else %}
@@ -24,8 +29,15 @@
             <tr>
                 {% for cell in row %}
                 <{{ cell['elem'] }}
+                data-manager="SampleTableCell {% if 'column_idx' in cell %}FilterableColumn{% endif %}"
                 rowspan="{{ cell['row_span'] or 1 }}"
-                colspan="{{ cell['col_span'] or 1 }}">
+                colspan="{{ cell['col_span'] or 1 }}"
+                data-value-repr="{{ cell['value'].__repr__() }}"
+                data-value-str="{{ cell['value'].__str__() }}"
+                {% if cell['column_idx'] %}
+                data-column-idx="{{ cell['column_idx'] }}"
+                {% endif %}
+                >
                 {{ cell["value"] }}
                 </{{ cell['elem'] }}>
                 {% endfor %}
