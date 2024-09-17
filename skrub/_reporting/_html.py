@@ -11,6 +11,7 @@ import pandas as pd
 from skrub import _dataframe as sbd
 from skrub import _selectors as s
 
+from .._utils import random_string
 from . import _utils
 
 _HIGH_ASSOCIATION_THRESHOLD = 0.9
@@ -47,6 +48,7 @@ def _get_jinja_env():
     ]:
         env.filters[function_name] = getattr(_utils, function_name)
     env.filters["is_null"] = pd.isna
+    env.globals["random_string"] = random_string
     return env
 
 
