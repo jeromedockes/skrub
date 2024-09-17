@@ -92,6 +92,7 @@ def _summarize_column(
 ):
     summary = {
         "position": position,
+        "idx": position,
         "name": sbd.name(column),
         "dtype": _utils.get_dtype_name(column),
         "value_is_constant": False,

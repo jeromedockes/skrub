@@ -15,6 +15,7 @@
                 <tr>
                     {% for i in range(summary["sample_table"]["min_j"], summary["sample_table"]["max_j"])%}
                     <td
+                        class="ellided-table-part"
                         {% if i >= 0%}
                         data-manager="FilterableColumn"
                         data-column-idx="{{ i }}"
@@ -30,16 +31,20 @@
                 {% for cell in row %}
                 <{{ cell['elem'] }}
                 id="{{ random_string() }}"
+                class="table-cell clickable ellided-short"
+                data-role="clickable-table-cell"
                 data-manager="SampleTableCell {% if 'column_idx' in cell %}FilterableColumn{% endif %}"
                 rowspan="{{ cell['row_span'] or 1 }}"
                 colspan="{{ cell['col_span'] or 1 }}"
                 data-value-repr="{{ cell['value'].__repr__() }}"
                 data-value-str="{{ cell['value'].__str__() }}"
-                {% if cell['column_idx'] %}
+                {% if 'column_idx' in cell %}
                 data-column-idx="{{ cell['column_idx'] }}"
                 {% endif %}
                 >
+                {% if not (cell["value"]) | is_null %}
                 {{ cell["value"] }}
+                {% endif %}
                 </{{ cell['elem'] }}>
                 {% endfor %}
             </tr>

@@ -40,6 +40,13 @@ if (customElements.get('skrub-table-report') === undefined) {
             delete this.elem.dataset.hidden;
         }
 
+        matchesColumnIdx(idx){
+            if(!this.elem.hasAttribute("data-column-idx")){
+                return false;
+            }
+            return Number(this.elem.dataset.columnIdx) === idx;
+        }
+
         matchesColumnFilter({
             acceptedColumns
         }) {
@@ -196,7 +203,7 @@ if (customElements.get('skrub-table-report') === undefined) {
         }
 
         SAMPLE_TABLE_CELL_ACTIVATED(msg) {
-            if (msg.columnIdx === this.elem.dataset.columnIdx) {
+            if (this.matchesColumnIdx(msg.columnIdx)) {
                 this.show();
             } else {
                 this.hide();
@@ -251,7 +258,7 @@ if (customElements.get('skrub-table-report') === undefined) {
             const msg = {
                 kind: "SAMPLE_TABLE_CELL_ACTIVATED",
                 cellId: this.elem.id,
-                columnIdx: this.elem.dataset.columnIdx,
+                columnIdx: Number(this.elem.dataset.columnIdx),
                 valueStr: this.elem.dataset.valueStr,
                 valueRepr: this.elem.dataset.valueRepr,
             };
@@ -290,7 +297,7 @@ if (customElements.get('skrub-table-report') === undefined) {
                 delete this.elem.dataset.isActive;
                 this.elem.setAttribute("tabindex", -1);
             }
-            if (msg.columnIdx === this.elem.dataset.columnIdx) {
+            if (this.matchesColumnIdx(msg.columnIdx)) {
                 this.elem.dataset.isInActiveColumn = "";
             } else {
                 delete this.elem.dataset.isInActiveColumn;
