@@ -12,6 +12,10 @@
     row-gap: var(--space-s);
 }
 
+.tab-list-wrapper > .fullscreen-button {
+    margin-left: var(--space-m);
+}
+
 .tab-list-scroller {
     overflow: auto hidden;
 }

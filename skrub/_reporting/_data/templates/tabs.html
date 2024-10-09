@@ -1,3 +1,5 @@
+{% import "buttons.html" as buttons %}
+
 {% set associations_warning = summary["top_associations"] and summary["top_associations"][0]["cramer_v"] is gt high_association_threshold %}
 
 {% set table_title %}Display a few rows of the dataframe in a table.{% endset %}
@@ -40,6 +42,7 @@ NOTE: some columns have very strong associations and may be redundant.
             </div>
         </div>
         {% include "column-filter.html" %}
+        {{ buttons.fullscreenbutton() }}
     </div>
 </div>
 

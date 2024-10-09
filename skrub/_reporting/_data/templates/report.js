@@ -934,6 +934,10 @@ if (customElements.get('skrub-table-report') === undefined) {
         }
     }
 
+    function requestFullScreenReport(event){
+        event.target.getRootNode().host.requestFullscreen();
+    }
+
     function hasModifier(event) {
         return event.ctrlKey || event.metaKey || event.shiftKey || event.altKey;
     }

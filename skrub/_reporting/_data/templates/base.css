@@ -67,6 +67,8 @@
     color-scheme: only light;
     border-radius: var(--radius, 0);
     max-width: max-content;
+    max-height: 100%;
+    overflow-y: auto;
 }
 
 
@@ -322,4 +324,14 @@ dd {
     background-color: var(--lightgreen);
     padding: var(--space-m);
     border-radius: var(--radius);
+}
+
+/* Full-screen button */
+/* ------------------ */
+
+.fullscreen-button {
+    width: var(--button-s);
+    height: var(--button-s);
+    border: none;
+    background: transparent;
 }

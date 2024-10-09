@@ -17,3 +17,13 @@
     {% include "icons/x-lg.svg" %}
 </button>
 {% endmacro %}
+
+{% macro fullscreenbutton() %}
+<button
+    type="button"
+    class="fullscreen-button"
+    onclick="requestFullScreenReport(event)"
+    title="Open report in fullscreen mode">
+   {% include "icons/fullscreen.svg" %}
+</button>
+{% endmacro %}
