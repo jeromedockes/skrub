@@ -35,6 +35,9 @@ class ExprTransformer(BaseEstimator):
     def __init__(self, expr):
         self.expr = expr
 
+    def _sklearn_compatible_estimator(self):
+        return CompatibleExprTransformer(clone_expr(self.expr))
+
     def fit(self, environment):
         _ = self.fit_transform(environment)
         return self
@@ -91,9 +94,6 @@ class ExprTransformer(BaseEstimator):
 
 
 class CompatibleExprTransformer(ExprTransformer):
-    def __init__(self, expr):
-        self.expr = expr
-
     @property
     def _estimator_type(self):
         try:
@@ -114,7 +114,7 @@ class CompatibleExprTransformer(ExprTransformer):
         xy_environment = {X_NAME: X, "_callback": callback}
         if y is not None:
             xy_environment[Y_NAME] = y
-        xy_environment.update(environment or {})
+        xy_environment = {**(environment or {}), **xy_environment}
         return evaluate(self.expr, "fit_transform", xy_environment, clear=True)
 
     def fit(self, X, y=None, environment=None):
@@ -123,10 +123,11 @@ class CompatibleExprTransformer(ExprTransformer):
 
     def _eval_in_mode(self, mode, X, y=None, *, environment):
         callback = partial(_prune_cache, self.expr, mode)
-        environment = {X_NAME: X, **environment, "_callback": callback}
+        xy_environment = {X_NAME: X, "_callback": callback}
         if y is not None:
-            environment[Y_NAME] = y
-        return evaluate(self.expr, mode, environment, clear=True)
+            xy_environment[Y_NAME] = y
+        xy_environment = {**(environment or {}), **xy_environment}
+        return evaluate(self.expr, mode, xy_environment, clear=True)
 
 
 class ScorerWrapper:
@@ -184,7 +185,8 @@ def cross_validate(expr_estimator, environment, scoring=None, **cv_params):
     else:
         y = None
 
-    estimator = CompatibleExprTransformer(clone_expr(expr))
+    estimator = _to_compatible(expr_estimator)
+
     scorer = metrics.check_scoring(estimator, scoring)
     scorer = ScorerWrapper(scorer)
     scorer.set_score_request(environment=True)
@@ -209,10 +211,20 @@ def _find_X_y(expr):
     return result
 
 
+def _to_compatible(estimator):
+    try:
+        return estimator._sklearn_compatible_estimator()
+    except AttributeError:
+        return clone(estimator)
+
+
 class ParamSearch(BaseEstimator):
     def __init__(self, expr, search):
         self.expr = expr
         self.search = search
+
+    def _sklearn_compatible_estimator(self):
+        return CompatibleParamSearch(clone_expr(self.expr), clone(self.search))
 
     @_with_metadata_routing
     def fit(self, environment):
@@ -246,6 +258,29 @@ class ParamSearch(BaseEstimator):
             subgrid = {f"expr__{k}": v for k, v in subgrid.items()}
             new_grid.append(subgrid)
         return new_grid
+
+    def __getattr__(self, name):
+        if name == "search_":
+            attribute_error(self, name)
+        if name not in self.expr._skrub_impl.supports_modes():
+            return getattr(self.search_, name)
+
+        def f(*args, **kwargs):
+            return self._call_predictor_method(name, *args, **kwargs)
+
+        f.__name__ = name
+        return f
+
+    def _call_predictor_method(self, name, environment):
+        if not hasattr(self, "search_"):
+            raise ValueError("Search not fitted")
+        return getattr(self.best_estimator_, name)(environment)
+
+    @property
+    def best_estimator_(self):
+        if not hasattr(self, "search_"):
+            attribute_error(self, "best_estimator_")
+        return ExprTransformer(self.search_.best_estimator_.expr)
 
     def get_cv_results_table(self, return_metadata=False, detailed=False):
         import pandas as pd
@@ -317,17 +352,6 @@ class ParamSearch(BaseEstimator):
             cv_results = cv_results[cv_results["mean_test_score"] >= min_score]
         return plot_parallel_coord(cv_results, metadata, colorscale=colorscale)
 
-    def __getattr__(self, name):
-        if name != "search_":
-            return getattr(self.search_, name)
-        attribute_error(self, name)
-
-    @property
-    def best_estimator_(self):
-        if not hasattr(self, "search_"):
-            attribute_error(self, "best_estimator_")
-        return ExprTransformer(self.search_.best_estimator_.expr)
-
 
 def _get_all_param_names(grid):
     names = {}
@@ -337,3 +361,35 @@ def _get_all_param_names(grid):
                 k = v.name
             names[k] = None
     return list(names)
+
+
+class CompatibleParamSearch(ParamSearch):
+    @property
+    def _estimator_type(self):
+        try:
+            return unwrap_default(self.expr._skrub_impl.estimator)._estimator_type
+        except AttributeError:
+            return "transformer"
+
+    @property
+    def classes_(self):
+        try:
+            estimator = self.best_estimator_.expr._skrub_impl.estimator_
+        except AttributeError:
+            attribute_error(self, "classes_")
+        return estimator.classes_
+
+    def fit(self, X, y=None, environment=None):
+        xy_environment = {X_NAME: X}
+        if y is not None:
+            xy_environment[Y_NAME] = y
+        xy_environment = {**(environment or {}), **xy_environment}
+        super().fit(xy_environment)
+        return self
+
+    def _call_predictor_method(self, name, X, y=None, *, environment):
+        if not hasattr(self, "search_"):
+            raise ValueError("Search not fitted")
+        return getattr(self.search_.best_estimator_, name)(
+            X, y=y, environment=environment
+        )
