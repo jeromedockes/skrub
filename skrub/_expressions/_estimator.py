@@ -125,7 +125,7 @@ class CompatibleExprTransformer(ExprTransformer):
         callback = partial(_prune_cache, self.expr, mode)
         environment = {X_NAME: X, **environment, "_callback": callback}
         if y is not None:
-            environment["y"] = y
+            environment[Y_NAME] = y
         return evaluate(self.expr, mode, environment, clear=True)
 
 
