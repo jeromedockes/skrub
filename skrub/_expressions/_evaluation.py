@@ -222,6 +222,11 @@ class _Evaluator(_ExprTraversal):
                 f"Evaluation of node {expr} failed. See above for full traceback. "
                 f"This node was defined here:\n{stack}"
             )
+            if hasattr(e, "add_note"):
+                e.add_note(msg)
+                raise
+            # python < 3.11 : we cannot add note to exception so fall back on chaining
+            # note this changes the type of exception
             raise RuntimeError(msg) from e
 
 
@@ -319,7 +324,9 @@ class _Cloner(_ExprTraversal):
         clone_impl = impl.__class__(**evaluated_attributes)
         if isinstance(clone_impl, Var) and self.drop_preview_data:
             clone_impl.placeholder = _Constants.NO_VALUE
-        clone_impl.is_X, clone_impl.is_y = impl.is_X, impl.is_y
+        clone_impl.is_X = impl.is_X
+        clone_impl.is_y = impl.is_y
+        clone_impl.creation_stack_description = impl.creation_stack_description
         clone_impl.name = impl.name
         clone = Expr(clone_impl)
         self._replace[id(expr)] = clone
