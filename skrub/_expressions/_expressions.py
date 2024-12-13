@@ -818,7 +818,7 @@ class Call(_CloudPickle, ExprImpl):
                 closure=tuple(types.CellType(c) for c in e.closure),
             )
 
-        kwargs = e.kwdefaults | e.kwargs
+        kwargs = (e.kwdefaults or {}) | e.kwargs
         return func(*e.args, **kwargs)
 
     def get_func_name(self):
@@ -870,6 +870,17 @@ def deferred(func):
             name: func.__globals__[name]
             for name in globals_names
             if name in func.__globals__
+            # TODO rather than exclude modules, types & functions, check if contains
+            # an expression and include only then?
+            and not isinstance(
+                func.__globals__[name],
+                (
+                    types.FunctionType,
+                    types.BuiltinFunctionType,
+                    type,
+                    types.ModuleType,
+                ),
+            )
         }
         closure = tuple(c.cell_contents for c in func.__closure__ or ())
         return Expr(

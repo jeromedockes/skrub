@@ -2,6 +2,7 @@ import datetime
 import html
 import io
 import re
+import reprlib
 import shutil
 import traceback
 import webbrowser
@@ -44,19 +45,21 @@ def _get_template(template_name):
 
 
 def node_report(expr, mode="preview", environment=None, **report_kwargs):
-    df = evaluate(expr, mode=mode, environment=environment)
-    if sbd.is_column(df):
+    result = evaluate(expr, mode=mode, environment=environment)
+    if sbd.is_column(result):
         # TODO say in page that it was a column not df
         # maybe this should be handled by tablereport? or we should have a
         # seriesreport with just 1 card?
-        df = sbd.make_dataframe_like(df, [df])
-    if sbd.is_dataframe(df):
-        report = TableReport(df, **report_kwargs)
+        result = sbd.make_dataframe_like(result, [result])
+    if sbd.is_dataframe(result):
+        report = TableReport(result, **report_kwargs)
     else:
         try:
-            report = df._repr_html_()
+            report = result._repr_html_()
         except Exception:
-            report = _get_template("simple-repr.html").render({"object_repr": repr(df)})
+            report = _get_template("simple-repr.html").render(
+                {"object_repr": reprlib.repr(result)}
+            )
     return report
 
 
