@@ -175,7 +175,14 @@ class _Evaluator(_ExprTraversal):
             return self.environment[X_NAME]
         if impl.is_y and Y_NAME in self.environment:
             return self.environment[Y_NAME]
-        if impl.name is not None and impl.name in self.environment:
+        if (
+            # if Var, let the usual mechanism fetch the value from the
+            # environment and store in results dict. Otherwise override with
+            # the provided value.
+            not isinstance(impl, Var)
+            and impl.name is not None
+            and impl.name in self.environment
+        ):
             return self.environment[impl.name]
         if self.mode in impl.results:
             return impl.results[self.mode]
