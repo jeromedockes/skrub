@@ -1,7 +1,7 @@
 import polars as pl
 from sklearn.datasets import fetch_20newsgroups
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import classification_report
-from sklearn.svm import LinearSVC
 
 import skrub
 from skrub import selectors as s
@@ -49,7 +49,7 @@ text_encoder = skrub.TextEncoder(
 X = extract_subject_body(X)
 X = add_text_stats(X)
 X = X.skb.apply(text_encoder, cols=s.string())
-pred = X.skb.apply(LinearSVC(dual=False), y=y)
+pred = X.skb.apply(HistGradientBoostingClassifier(), y=y)
 
 pred.skb.full_report().open()
 
