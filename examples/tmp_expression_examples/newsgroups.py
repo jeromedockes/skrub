@@ -1,3 +1,6 @@
+# rewrite with skrub:
+# https://scikit-learn.org/stable/auto_examples/compose/plot_column_transformer.html#sphx-glr-auto-examples-compose-plot-column-transformer-py
+
 import polars as pl
 from sklearn.datasets import fetch_20newsgroups
 from sklearn.ensemble import HistGradientBoostingClassifier
