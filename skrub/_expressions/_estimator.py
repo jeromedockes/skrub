@@ -131,10 +131,11 @@ class CompatibleExprTransformer(ExprTransformer):
 
 
 class ScorerWrapper:
-    def __init__(self, scorer):
+    def __init__(self, scorer, environment):
         self._scorer = scorer
+        self._environment = environment
 
-    def __call__(self, estimator, X, y, *args, environment, **kwargs):
+    def __call__(self, estimator, X, y, *args, **kwargs):
         all_method_names = FITTED_PREDICTOR_METHODS
         for method_name in all_method_names:
             try:
@@ -144,7 +145,7 @@ class ScorerWrapper:
 
             @wraps(original_method)
             def wrapped(X, *y, original_method=original_method):
-                return original_method(X, *y, environment=environment)
+                return original_method(X, *y, environment=self._environment)
 
             setattr(estimator, method_name, wrapped)
         try:
@@ -159,11 +160,6 @@ class ScorerWrapper:
                     delattr(estimator, method_name)
                 except AttributeError:
                     pass
-
-    def __getattr__(self, name):
-        if name in ["set_score_request", "get_metadata_routing"]:
-            return getattr(self._scorer, name)
-        attribute_error(self, name)
 
 
 def _with_metadata_routing(func):
@@ -188,8 +184,7 @@ def cross_validate(expr_estimator, environment, scoring=None, **cv_params):
     estimator = _to_compatible(expr_estimator)
 
     scorer = metrics.check_scoring(estimator, scoring)
-    scorer = ScorerWrapper(scorer)
-    scorer.set_score_request(environment=True)
+    scorer = ScorerWrapper(scorer, environment)
     estimator.set_fit_request(environment=True)
     return model_selection.cross_validate(
         estimator,
@@ -208,6 +203,12 @@ def _find_X_y(expr):
     result = {"X": x_node}
     if (y_node := find_y(expr)) is not None:
         result["y"] = y_node
+    else:
+        impl = expr._skrub_impl
+        if getattr(impl, "y", None) is not None:
+            # the final estimator requests a y so some node must have been
+            # marked as y
+            raise ValueError('expr should have a node marked with "mark_as_y()"')
     return result
 
 
@@ -236,10 +237,6 @@ class ParamSearch(BaseEstimator):
             y = None
         self.estimator_ = CompatibleExprTransformer(clone_expr(self.expr))
         self.search_ = clone(self.search)
-        scorer = metrics.check_scoring(self.estimator_, self.search.scoring)
-        scorer = ScorerWrapper(scorer)
-        scorer.set_score_request(environment=True)
-        self.search_.scoring = scorer
         self.estimator_.set_fit_request(environment=True)
         self.search_.estimator = self.estimator_
         param_grid = self._get_param_grid()
@@ -248,7 +245,14 @@ class ParamSearch(BaseEstimator):
         else:
             assert hasattr(self.search_, "param_distributions")
             self.search_.param_distributions = param_grid
-        self.search_.fit(X, y, environment=environment)
+        scorer = metrics.check_scoring(self.estimator_, self.search.scoring)
+        scorer = ScorerWrapper(scorer, environment)
+        self.search_.scoring = scorer
+        try:
+            self.search_.fit(X, y, environment=environment)
+        finally:
+            # TODO copy useful attributes and stop storing self.search_ instead
+            self.search_.scoring.environment = None
         return self
 
     def _get_param_grid(self):
