@@ -34,6 +34,7 @@ def periodic_spline_transformer(period, n_splines, degree=3):
     )
 
 
+# %%
 hour_workday = (
     X[["hour", "workingday"]]
     .skb.apply(periodic_spline_transformer(24, 8), cols="hour")
@@ -63,13 +64,16 @@ X_nystroem = X.skb.apply(
 )
 
 # %%
-X_nystroem.skb.get_report().open()
+X = skrub.value(
+    skrub.choose_from(
+        dict(nystroem=X_nystroem, interactions=X_interactions), name="model"
+    )
+)
 
 # %%
 from sklearn.linear_model import RidgeCV
 
-pred = X_nystroem.skb.apply(RidgeCV(alphas=np.logspace(-6, 6, 25)), y=y)
-print(pred)
+pred = X.skb.apply(RidgeCV(alphas=np.logspace(-6, 6, 25)), y=y)
 
 # %%
 pred_orig_scale = pred * MAX
@@ -92,3 +96,8 @@ res = pred.skb.cross_validate(
 )
 print(f"rmse: {-res['test_neg_root_mean_squared_error'].mean():.3f}")
 print(f"mae: {-res['test_neg_mean_absolute_error'].mean():.3f}")
+
+# %%
+search = pred.skb.get_grid_search(cv=ts_cv, scoring="neg_mean_absolute_error")
+search.fit(pred.skb.get_data())
+print(search.get_cv_results_table())
