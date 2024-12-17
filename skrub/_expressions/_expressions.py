@@ -902,7 +902,12 @@ class ConcatHorizontal(ExprImpl):
     _fields = ["first", "others"]
 
     def compute(self, e, mode, environment):
-        return sbd.concat_horizontal(e.first, *e.others)
+        result = sbd.concat_horizontal(e.first, *e.others)
+        if mode == "preview" or "fit" in mode:
+            self.all_outputs_ = sbd.column_names(result)
+        else:
+            result = sbd.set_column_names(result, self.all_outputs_)
+        return result
 
     def __repr__(self):
         try:
