@@ -10,8 +10,11 @@ def simple_repr(expr, open_tag="", close_tag=""):
     return f"{open_tag}{start.upper()}{close_tag}{sep}{rest}"
 
 
-def attribute_error(obj, name):
-    raise AttributeError(f"{obj.__class__.__name__!r} object has no attribute {name!r}")
+def attribute_error(obj, name, comment=None):
+    msg = f"{obj.__class__.__name__!r} object has no attribute {name!r}"
+    if comment:
+        msg = f"{msg}. {comment}"
+    raise AttributeError(msg)
 
 
 class _CloudPickle:

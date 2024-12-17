@@ -763,7 +763,15 @@ class GetAttr(ExprImpl):
     _fields = ["parent", "attr_name"]
 
     def compute(self, e, mode, environment):
-        return getattr(e.parent, e.attr_name)
+        try:
+            return getattr(e.parent, e.attr_name)
+        except AttributeError:
+            pass
+        if isinstance(self.parent, Expr) and hasattr(SkrubNamespace, e.attr_name):
+            comment = f"Did you mean '.skb.{e.attr_name}'?"
+        else:
+            comment = None
+        attribute_error(e.parent, e.attr_name, comment)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.attr_name!r}>"
