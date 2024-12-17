@@ -213,9 +213,10 @@ def _with_preview_evaluation(f):
         except UninitializedVariable:
             pass
         except Exception as e:
-            func_name = f.__name__
-            if isinstance(expr._skrub_impl, (Call, CallMethod)):
-                func_name = expr._skrub_impl.get_func_name()
+            try:
+                func_name = expr._skrub_impl.pretty_repr()
+            except Exception:
+                func_name = f"{f.__name__}()"
             msg = "\n".join(traceback.format_exception_only(e)).rstrip("\n")
             raise RuntimeError(
                 f"Preview evaluation of {func_name!r} failed.\n"
@@ -227,6 +228,12 @@ def _with_preview_evaluation(f):
     return _check_preview
 
 
+def _get_preview(obj):
+    if isinstance(obj, Expr) and "preview" in obj._skrub_impl.results:
+        return obj._skrub_impl.results["preview"]
+    return obj
+
+
 def _with_check_call_return_value(f):
     @functools.wraps(f)
     def _check_call_return_value(*args, **kwargs):
@@ -236,8 +243,12 @@ def _with_check_call_return_value(f):
         result = expr._skrub_impl.results["preview"]
         if result is not None:
             return expr
+        try:
+            func_name = expr._skrub_impl.pretty_repr()
+        except Exception:
+            func_name = expr._skrub_impl.get_func_name()
         msg = (
-            f"Calling {expr._skrub_impl.get_func_name()!r} returned None. "
+            f"Calling {func_name!r} returned None. "
             "To enable chaining steps in a pipeline, do not use functions "
             "that modify objects in-place but rather functions that leave "
             "their argument unchanged and return a new object."
@@ -436,20 +447,23 @@ class SkrubNamespace:
     def __init__(self, expr):
         self._expr = expr
 
-    @_with_preview_evaluation
-    def apply(self, estimator, y=None, cols=s.all(), name=None):
+    def _apply(self, estimator, y=None, cols=s.all(), name=None):
         expr = Expr(Apply(estimator, cols, self._expr, y))
         if name is not None:
             expr = expr.skb.set_name(name)
         return expr
 
     @_with_preview_evaluation
+    def apply(self, estimator, y=None, cols=s.all(), name=None):
+        return self._apply(estimator=estimator, y=y, cols=cols, name=name)
+
+    @_with_preview_evaluation
     def select(self, cols, name=None):
-        return self.apply(SelectCols(cols), name=name)
+        return self._apply(SelectCols(cols), name=name)
 
     @_with_preview_evaluation
     def drop(self, cols, name=None):
-        return self.apply(DropCols(cols), name=name)
+        return self._apply(DropCols(cols), name=name)
 
     @_with_preview_evaluation
     def concat_horizontal(self, others):
@@ -776,6 +790,9 @@ class GetAttr(ExprImpl):
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.attr_name!r}>"
 
+    def pretty_repr(self):
+        return f".{_get_preview(self.attr_name)}"
+
 
 def _get_repr_formatter():
     r = reprlib.Repr()
@@ -802,6 +819,9 @@ class GetItem(ExprImpl):
     def __repr__(self):
         r = _get_repr_formatter()
         return f"<{self.__class__.__name__} {r.repr(self.key)}>"
+
+    def pretty_repr(self):
+        return f"[{_get_preview(self.key)!r}]"
 
 
 class Call(_CloudPickle, ExprImpl):
@@ -848,6 +868,9 @@ class Call(_CloudPickle, ExprImpl):
         name = self.get_func_name()
         return f"<{self.__class__.__name__} {name!r}>"
 
+    def pretty_repr(self):
+        return f"{_get_preview(self.func).__name__}()"
+
 
 class CallMethod(ExprImpl):
     """This class allows squashing GetAttr + Call to simplify the graph."""
@@ -862,6 +885,9 @@ class CallMethod(ExprImpl):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.method_name!r}>"
+
+    def pretty_repr(self):
+        return f".{_get_preview(self.method_name)}()"
 
 
 def deferred(func):
