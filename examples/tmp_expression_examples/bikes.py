@@ -3,6 +3,7 @@
 from sklearn.datasets import fetch_openml
 
 import skrub
+from skrub import selectors as s
 
 df = fetch_openml("Bike_Sharing_Demand", version=2, as_frame=True).frame
 MAX = df["count"].max()
@@ -13,10 +14,61 @@ X = bikes.drop("count", axis="columns").skb.mark_as_x()
 y = (bikes["count"] / MAX).skb.mark_as_y()
 
 # %%
-from sklearn.ensemble import HistGradientBoostingRegressor
+import numpy as np
+from sklearn.preprocessing import (
+    MinMaxScaler,
+    OneHotEncoder,
+    PolynomialFeatures,
+    SplineTransformer,
+)
 
-gbrt = HistGradientBoostingRegressor(categorical_features="from_dtype", random_state=42)
-pred = X.skb.apply(gbrt, y=y)
+
+def periodic_spline_transformer(period, n_splines, degree=3):
+    n_knots = n_splines + 1
+    return SplineTransformer(
+        degree=degree,
+        n_knots=n_knots,
+        knots=np.linspace(0, period, n_knots).reshape(n_knots, 1),
+        extrapolation="periodic",
+        include_bias=True,
+    )
+
+
+hour_workday = (
+    X[["hour", "workingday"]]
+    .skb.apply(periodic_spline_transformer(24, 8), cols="hour")
+    .assign(workingday=X["workingday"] == "True")
+    .skb.apply(PolynomialFeatures(degree=2, interaction_only=True, include_bias=False))
+)
+
+# %%
+X = (
+    X.skb.apply(periodic_spline_transformer(12, 6), cols="month")
+    .skb.apply(periodic_spline_transformer(7, 3), cols="weekday")
+    .skb.apply(periodic_spline_transformer(24, 12), cols="hour")
+    .skb.apply(MinMaxScaler(), cols=s.numeric() - ["month", "hour", "weekday"])
+    .skb.apply(
+        OneHotEncoder(handle_unknown="ignore", sparse_output=False), cols=~s.numeric()
+    )
+)
+
+# %%
+X_interactions = X.skb.concat_horizontal([hour_workday])
+
+# %%
+from sklearn.kernel_approximation import Nystroem
+
+X_nystroem = X.skb.apply(
+    Nystroem(kernel="poly", degree=2, n_components=300, random_state=0),
+)
+
+# %%
+X_nystroem.skb.get_report().open()
+
+# %%
+from sklearn.linear_model import RidgeCV
+
+pred = X_nystroem.skb.apply(RidgeCV(alphas=np.logspace(-6, 6, 25)), y=y)
 print(pred)
 
 # %%
