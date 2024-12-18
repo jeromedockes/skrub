@@ -147,6 +147,7 @@ class ExprImpl:
             self.is_y = False
             if "name" not in self.__dict__:
                 self.name = None
+            self.description = None
 
         __init__.__signature__ = sig
 
@@ -594,6 +595,10 @@ class SkrubNamespace:
     def set_name(self, name):
         _check_name(name)
         self._expr._skrub_impl.name = name
+        return self._expr
+
+    def describe(self, description):
+        self._expr._skrub_impl.description = description
         return self._expr
 
     def clear_results(self):

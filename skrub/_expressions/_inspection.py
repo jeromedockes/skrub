@@ -168,6 +168,7 @@ def full_report(
                 error=error,
                 error_msg=error_msg,
                 node_creation_stack_description=node._skrub_impl.creation_stack_description,
+                node_description=node._skrub_impl.description,
                 svg=svg,
                 node_status=node_status,
                 estimator_html_repr=estimator_html_repr,
@@ -228,7 +229,10 @@ def _node_kwargs(expr, url=None):
         kwargs["URL"] = computed_url
         label = f'<<FONT COLOR="#1a0dab"><B>{label}</B></FONT>>'
     kwargs["label"] = label
-    kwargs["tooltip"] = html.escape(_last_frame(expr))
+    tooltip = html.escape(_last_frame(expr))
+    if description := expr._skrub_impl.description:
+        tooltip = f"{tooltip}\n\n{html.escape(description)}"
+    kwargs["tooltip"] = tooltip
     if isinstance(expr._skrub_impl, (Var, Value)):
         kwargs["peripheries"] = 2
     return kwargs
