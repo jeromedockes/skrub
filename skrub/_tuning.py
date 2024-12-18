@@ -630,6 +630,11 @@ class BaseChoice:
     recognizable with ``isinstance`` checks.
     """
 
+    def as_expr(self):
+        from ._expressions import value
+
+        return value(self)
+
 
 @dataclasses.dataclass
 class Choice(Sequence, BaseChoice):

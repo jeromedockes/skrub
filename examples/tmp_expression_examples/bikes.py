@@ -64,11 +64,9 @@ X_nystroem = X.skb.apply(
 )
 
 # %%
-X = skrub.value(
-    skrub.choose_from(
-        dict(nystroem=X_nystroem, interactions=X_interactions), name="model"
-    )
-)
+X = skrub.choose_from(
+    dict(nystroem=X_nystroem, interactions=X_interactions), name="model"
+).as_expr()
 
 # %%
 from sklearn.linear_model import RidgeCV
