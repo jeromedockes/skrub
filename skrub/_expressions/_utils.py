@@ -21,7 +21,7 @@ class _CloudPickle:
     def __getstate__(self):
         from joblib.externals import cloudpickle
 
-        state = super().__getstate__()
+        state = dict(super().__getstate__())
         for k in self._cloudpickle_attributes:
             # TODO warn if cloudpickle has to pickle by value
             state[k] = cloudpickle.dumps(state[k])
