@@ -57,9 +57,8 @@ def node_report(expr, mode="preview", environment=None, **report_kwargs):
         try:
             report = result._repr_html_()
         except Exception:
-            report = _get_template("simple-repr.html").render(
-                {"object_repr": reprlib.repr(result)}
-            )
+            res_repr = reprlib.Repr(maxstring=1000, maxother=10_000).repr(result)
+            report = _get_template("simple-repr.html").render({"object_repr": res_repr})
     return report
 
 
