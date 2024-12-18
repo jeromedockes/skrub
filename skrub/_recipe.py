@@ -18,6 +18,7 @@ from ._select_cols import Drop
 from ._tuning import (
     Choice,
     Optional,
+    choose_bool,
     choose_float,
     choose_from,
     choose_int,
@@ -37,6 +38,7 @@ __all__ = [
     "Recipe",
     "choose_from",
     "optional",
+    "choose_bool",
     "choose_float",
     "choose_int",
 ]

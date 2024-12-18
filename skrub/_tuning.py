@@ -869,6 +869,16 @@ def optional(value, name=None):
     return Optional([Outcome(value, "true"), Outcome(None, "false")], name=name)
 
 
+class BoolChoice(Choice):
+    def __repr__(self):
+        return "choose_bool()"
+
+
+def choose_bool(name=None):
+    """Construct a choice between False and True."""
+    return BoolChoice([Outcome(False), Outcome(True)], name=name)
+
+
 def _check_bounds(low, high, log):
     if high < low:
         raise ValueError(

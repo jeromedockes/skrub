@@ -19,6 +19,7 @@ from ._minhash_encoder import MinHashEncoder
 from ._multi_agg_joiner import MultiAggJoiner
 from ._recipe import (
     Recipe,
+    choose_bool,
     choose_float,
     choose_from,
     choose_int,
@@ -76,6 +77,7 @@ __all__ = [
     "optional",
     "choose_float",
     "choose_int",
+    "choose_bool",
     "selectors",
     "TextEncoder",
     "column_associations",
