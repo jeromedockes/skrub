@@ -283,4 +283,4 @@ def describe_param_grid(expr):
             else:
                 buf.write(f"{prefix}{name}: {v}\n")
             prefix = "  "
-    return buf.getvalue()
+    return buf.getvalue() or "<empty parameter grid>"

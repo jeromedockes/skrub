@@ -526,6 +526,8 @@ def _expand_grid(graph, grid):
         return False
 
     # extract
+    if None not in graph["parents"]:
+        return [grid]
     for choice_id in graph["parents"][None]:
         if not has_parents(choice_id):
             grid[choice_id] = choice_range(choice_id)
