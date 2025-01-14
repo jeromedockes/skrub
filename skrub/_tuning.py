@@ -760,6 +760,11 @@ class Match:
             {k: outcome_mapping[v] for k, v in self.outcome_mapping.items()},
         )
 
+    def as_expr(self):
+        from ._expressions import value
+
+        return value(self)
+
 
 def choose_from(outcomes, name=None):
     """Construct a choice among several possible outcomes.

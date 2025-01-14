@@ -947,7 +947,9 @@ def deferred_optional(func, cond):
     deferred_func = deferred(func)
 
     def f(*args, **kwargs):
-        return cond.match({True: deferred_func(*args, **kwargs), False: args[0]})
+        return cond.match(
+            {True: deferred_func(*args, **kwargs), False: args[0]}
+        ).as_expr()
 
 
 class ConcatHorizontal(ExprImpl):
