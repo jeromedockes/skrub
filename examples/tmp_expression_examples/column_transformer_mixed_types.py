@@ -41,6 +41,7 @@ X = num.skb.concat_horizontal([cat])
 pred = X.skb.apply(
     LogisticRegression(C=skrub.choose_float(0.1, 100, log=True, name="C")), y=y
 )
+pred.skb.full_report()
 clf = pred.skb.get_randomized_search()
 
 
