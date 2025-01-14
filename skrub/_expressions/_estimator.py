@@ -219,6 +219,11 @@ def _to_compatible(estimator):
         return clone(estimator)
 
 
+# TODO with ParameterGrid and ParameterSampler we can generate the list of
+# candidates so we can provide more than just a score, eg full predictions for
+# each sampled param combination.
+
+
 class ParamSearch(BaseEstimator):
     def __init__(self, expr, search):
         self.expr = expr

@@ -454,6 +454,7 @@ class SkrubNamespace:
             expr = expr.skb.set_name(name)
         return expr
 
+    # TODO add a cond param to apply rather than having _tuning.optional?
     @_with_preview_evaluation
     def apply(self, estimator, y=None, cols=s.all(), name=None):
         return self._apply(estimator=estimator, y=y, cols=cols, name=name)
@@ -935,6 +936,18 @@ def deferred(func):
         )
 
     return inner
+
+
+def deferred_optional(func, cond):
+    from .._tuning import choose_bool
+
+    if isinstance(cond, str):
+        cond = choose_bool(cond)
+
+    deferred_func = deferred(func)
+
+    def f(*args, **kwargs):
+        return cond.match({True: deferred_func(*args, **kwargs), False: args[0]})
 
 
 class ConcatHorizontal(ExprImpl):
