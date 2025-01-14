@@ -9,7 +9,6 @@ import sys
 import textwrap
 import traceback
 import types
-from collections import defaultdict
 
 from sklearn.base import BaseEstimator
 
@@ -165,30 +164,6 @@ class ExprImpl:
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>"
-
-    def get_params(self):
-        params = {}
-        for field in self._fields:
-            attr = getattr(self, field)
-            params[field] = attr
-            if not isinstance(attr, Expr) and hasattr(attr, "get_params"):
-                params.update(
-                    {f"{field}__{k}": v for k, v in attr.get_params().items()}
-                )
-        return params
-
-    def set_params(self, params):
-        targets = self.get_params()
-        nested_params = defaultdict(dict)
-        for key, value in params.items():
-            key, delim, sub_key = key.partition("__")
-            if delim:
-                nested_params[key][sub_key] = value
-            else:
-                setattr(self, key, value)
-                targets[key] = value
-        for key, sub_params in nested_params.items():
-            targets[key].set_params(**sub_params)
 
 
 def _with_preview_evaluation(f):
