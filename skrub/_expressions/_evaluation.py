@@ -195,6 +195,8 @@ class _Evaluator(_ExprTraversal):
         return result
 
     def handle_choice(self, choice):
+        if choice.name is not None and choice.name in self.environment:
+            return self.environment[choice.name]
         if self.mode == "preview":
             return (yield _tuning.unwrap_default(choice))
         outcome = choice.chosen_outcome_or_default()
@@ -204,13 +206,8 @@ class _Evaluator(_ExprTraversal):
         return (yield _tuning.unwrap(outcome))
 
     def handle_choice_match(self, choice_match):
-        choice = choice_match.choice
-        if self.mode == "preview":
-            outcome = choice.default()
-        else:
-            outcome = choice.chosen_outcome_or_default()
-        value = yield outcome
-        return (yield choice_match.outcome_mapping[value])
+        outcome = yield choice_match.choice
+        return (yield choice_match.outcome_mapping[outcome])
 
     def compute_result(self, expr, evaluated_attributes):
         mode = self._pick_mode(expr)

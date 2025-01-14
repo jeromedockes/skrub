@@ -951,6 +951,8 @@ def deferred_optional(func, cond):
             {True: deferred_func(*args, **kwargs), False: args[0]}
         ).as_expr()
 
+    return f
+
 
 class ConcatHorizontal(ExprImpl):
     _fields = ["first", "others"]
