@@ -876,7 +876,7 @@ class BoolChoice(Choice):
 
 def choose_bool(name=None):
     """Construct a choice between False and True."""
-    return BoolChoice([Outcome(False), Outcome(True)], name=name)
+    return BoolChoice([Outcome(True), Outcome(False)], name=name)
 
 
 def _check_bounds(low, high, log):

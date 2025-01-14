@@ -40,7 +40,7 @@ def get_parallel_coord_data(cv_results, metadata, colorscale=DEFAULT_COLORSCALE)
 
 
 def _prepare_column(col, is_log_scale):
-    if not pd.api.types.is_numeric_dtype(col):
+    if pd.api.types.is_bool_dtype(col) or not pd.api.types.is_numeric_dtype(col):
         return _prepare_obj_column(col)
     if is_log_scale or col.isna().any():
         return _prepare_numeric_column(col, is_log_scale)
