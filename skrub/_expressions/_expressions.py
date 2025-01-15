@@ -116,7 +116,7 @@ def _find_outer_frame():
 
 def _format_expr_creation_stack():
     try:
-        return "".join(traceback.format_stack(_find_outer_frame()))
+        return "\n".join(traceback.format_stack(_find_outer_frame()))
     except Exception:
         return None
 
