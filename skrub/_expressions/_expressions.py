@@ -521,10 +521,10 @@ class SkrubNamespace:
 
         return describe_param_grid(self._expr)
 
-    def full_report(self, mode="preview", environment=None):
+    def full_report(self, environment=None, mode="preview"):
         from ._inspection import full_report
 
-        return full_report(self._expr, mode=mode, environment=environment)
+        return full_report(self._expr, environment=environment, mode=mode)
 
     def _get_clone(self):
         from ._evaluation import clone

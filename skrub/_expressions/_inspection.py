@@ -101,7 +101,7 @@ def _node_status(expr_graph, mode):
 
 
 def full_report(
-    expr, mode="preview", environment=None, open=True, output_dir=None, overwrite=False
+    expr, environment=None, mode="preview", open=True, output_dir=None, overwrite=False
 ):
     output_dir = _get_output_dir(output_dir, overwrite)
     clear_results(expr)
