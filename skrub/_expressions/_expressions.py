@@ -6,6 +6,7 @@ import itertools
 import operator
 import pathlib
 import reprlib
+import sys
 import textwrap
 import traceback
 import types
@@ -106,16 +107,24 @@ class UninitializedVariable(KeyError):
 
 
 def _format_expr_creation_stack():
-    # TODO use inspect.stack() instead for better context + within-line
-    # position of the instruction
-    fpath = str(pathlib.Path(__file__).parent)
-    try:
-        stack = itertools.takewhile(
-            lambda f: fpath not in f.filename, traceback.extract_stack()
-        )
-        return traceback.format_list(stack)
-    except Exception:
-        return None
+    # TODO use inspect.stack() instead of traceback.extract_stack() for more
+    # context lines + within-line position of the instruction
+
+    fpath = pathlib.Path(__file__).parent
+    pypath = pathlib.Path(sys.base_prefix)
+    stack = traceback.extract_stack()
+
+    def not_skrub(f):
+        return not pathlib.Path(f.filename).is_relative_to(fpath)
+
+    def is_shell(f):
+        return pathlib.Path(f.filename).is_relative_to(pypath) or f.filename in [
+            "<frozen runpy>",
+            "<stdin>",
+        ]
+
+    stack = itertools.takewhile(not_skrub, itertools.dropwhile(is_shell, stack))
+    return traceback.format_list(stack)
 
 
 class ExprImpl:
