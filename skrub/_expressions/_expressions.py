@@ -119,7 +119,8 @@ def _remove_shell_frames(stack):
 
 def _format_expr_creation_stack():
     # TODO use inspect.stack() instead of traceback.extract_stack() for more
-    # context lines + within-line position of the instruction
+    # context lines + within-line position of the instruction (dis.Positions
+    # was only added in 3.11, though)
 
     stack = traceback.extract_stack()
     stack = _remove_shell_frames(stack)
