@@ -241,7 +241,7 @@ def _dot_id(n):
     return f"node_{n}"
 
 
-def draw_expr_graph(expr, url=None, direction="BT"):
+def draw_expr_graph(expr, url=None, direction="TB"):
     import pydot
 
     g = graph(expr)
@@ -253,7 +253,7 @@ def draw_expr_graph(expr, url=None, direction="BT"):
         dot_graph.add_node(node)
     for c, parents in g["parents"].items():
         for p in parents:
-            dot_graph.add_edge(pydot.Edge(_dot_id(c), _dot_id(p)))
+            dot_graph.add_edge(pydot.Edge(_dot_id(p), _dot_id(c)))
 
     svg = dot_graph.create_svg()
     svg = re.sub(b"<title>.*?</title>", b"", svg)
