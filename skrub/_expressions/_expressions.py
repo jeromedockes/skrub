@@ -637,21 +637,21 @@ class Var(ExprImpl):
         return f"<Var {self.name!r}>"
 
 
-def var(name, value=_Constants.NO_VALUE):
+def var(name, placeholder=_Constants.NO_VALUE):
     if name is None:
         raise TypeError(
             "'name' for a variable cannot be None, please provide a string."
         )
     _check_name(name)
-    return Expr(Var(name, placeholder=value))
+    return Expr(Var(name, placeholder=placeholder))
 
 
-def X(value=_Constants.NO_VALUE):
-    return Expr(Var("X", placeholder=value)).skb.mark_as_x()
+def X(placeholder=_Constants.NO_VALUE):
+    return Expr(Var("X", placeholder=placeholder)).skb.mark_as_x()
 
 
-def y(value=_Constants.NO_VALUE):
-    return Expr(Var("y", placeholder=value)).skb.mark_as_y()
+def y(placeholder=_Constants.NO_VALUE):
+    return Expr(Var("y", placeholder=placeholder)).skb.mark_as_y()
 
 
 class Value(ExprImpl):
