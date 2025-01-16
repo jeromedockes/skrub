@@ -17,7 +17,6 @@ from ._expressions import (
     IfElse,
     Var,
     _Constants,
-    _last_traceback_line,
 )
 from ._utils import X_NAME, Y_NAME, simple_repr
 
@@ -221,7 +220,7 @@ class _Evaluator(_ExprTraversal):
             expr._skrub_impl.errors[mode] = e
             if mode == "preview":
                 raise
-            stack = _last_traceback_line(expr._skrub_impl.creation_stack_description)
+            stack = expr._skrub_impl.creation_stack_last_line()
             msg = (
                 f"Evaluation of node {expr} failed. See above for full traceback. "
                 f"This node was defined here:\n{stack}"
@@ -330,7 +329,7 @@ class _Cloner(_ExprTraversal):
             clone_impl.placeholder = _Constants.NO_VALUE
         clone_impl.is_X = impl.is_X
         clone_impl.is_y = impl.is_y
-        clone_impl.creation_stack_description = impl.creation_stack_description
+        clone_impl._creation_stack_lines = impl._creation_stack_lines
         clone_impl.name = impl.name
         clone = Expr(clone_impl)
         self._replace[id(expr)] = clone

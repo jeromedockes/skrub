@@ -170,7 +170,7 @@ def full_report(
                 report=report,
                 error=error,
                 error_msg=error_msg,
-                node_creation_stack_description=node._skrub_impl.creation_stack_description,
+                node_creation_stack_description=node._skrub_impl.creation_stack_description(),
                 node_description=node._skrub_impl.description,
                 svg=svg,
                 node_status=node_status,
@@ -205,10 +205,6 @@ def _add_style(kwargs, *new_styles):
     kwargs["style"] = style
 
 
-def _last_frame(expr):
-    return "\n".join(expr._skrub_impl.creation_stack_description.splitlines()[-2:])
-
-
 def _node_kwargs(expr, url=None):
     label = html.escape(simple_repr(expr))
     kwargs = {
@@ -232,7 +228,7 @@ def _node_kwargs(expr, url=None):
         kwargs["URL"] = computed_url
         label = f'<<FONT COLOR="#1a0dab"><B>{label}</B></FONT>>'
     kwargs["label"] = label
-    tooltip = html.escape(_last_frame(expr))
+    tooltip = html.escape(expr._skrub_impl.creation_stack_last_line())
     if description := expr._skrub_impl.description:
         tooltip = f"{tooltip}\n\n{html.escape(description)}"
     kwargs["tooltip"] = tooltip

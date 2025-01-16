@@ -2,10 +2,10 @@ import dis
 import enum
 import functools
 import inspect
+import itertools
 import operator
 import pathlib
 import reprlib
-import sys
 import textwrap
 import traceback
 import types
@@ -105,27 +105,17 @@ class UninitializedVariable(KeyError):
     """
 
 
-# TODO move those 3 functions to utils
-def _find_outer_frame():
-    f = sys._getframe()
-    fpath = str(pathlib.Path(__file__).parent)
-    while f is not None and fpath in f.f_code.co_filename:
-        f = f.f_back
-    return f
-
-
 def _format_expr_creation_stack():
+    # TODO use inspect.stack() instead for better context + within-line
+    # position of the instruction
+    fpath = str(pathlib.Path(__file__).parent)
     try:
-        return "\n".join(traceback.format_stack(_find_outer_frame()))
+        stack = itertools.takewhile(
+            lambda f: fpath not in f.filename, traceback.extract_stack()
+        )
+        return traceback.format_list(stack)
     except Exception:
         return None
-
-
-def _last_traceback_line(traceback_str, indent="    "):
-    return textwrap.indent(
-        traceback_str.rpartition("\n\n")[-1],
-        "    ",
-    ).rstrip("\n")
 
 
 class ExprImpl:
@@ -141,7 +131,7 @@ class ExprImpl:
             self.__dict__.update(bound.arguments)
             self.results = {}
             self.errors = {}
-            self.creation_stack_description = _format_expr_creation_stack()
+            self._creation_stack_lines = _format_expr_creation_stack()
             self.is_X = False
             self.is_y = False
             if "name" not in self.__dict__:
@@ -152,6 +142,17 @@ class ExprImpl:
 
         cls.__init__ = __init__
         cls._init_signature = sig
+
+    def creation_stack_description(self):
+        if self._creation_stack_lines is None:
+            return ""
+        return "".join(self._creation_stack_lines)
+
+    def creation_stack_last_line(self):
+        if not self._creation_stack_lines:
+            return ""
+        line = self._creation_stack_lines[-1]
+        return textwrap.indent(line, "    ").rstrip("\n")
 
     def preview_if_available(self):
         return self.results.get("preview", _Constants.NO_VALUE)
@@ -477,10 +478,8 @@ class SkrubNamespace:
                 return
             if prev is node:
                 return
-            first_stack = _last_traceback_line(
-                prev._skrub_impl.creation_stack_description
-            )
-            second_stack = _last_traceback_line(impl.creation_stack_description)
+            first_stack = prev._skrub_impl.creation_stack_last_line
+            second_stack = impl.creation_stack_last_line
             msg = (
                 f"The variable name {impl.name!r} has been used several times "
                 "in this expression to refer to different quantities:\n"
