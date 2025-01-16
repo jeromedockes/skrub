@@ -6,7 +6,6 @@ import itertools
 import operator
 import pathlib
 import reprlib
-import sys
 import textwrap
 import traceback
 import types
@@ -106,24 +105,28 @@ class UninitializedVariable(KeyError):
     """
 
 
+def _remove_shell_frames(stack):
+    shells = [
+        (pathlib.Path("IPython", "core", "interactiveshell.py"), "run_code"),
+        ("code.py", "runcode"),
+    ]
+    for i, f in enumerate(stack):
+        for file_path, func_name in shells:
+            if pathlib.Path(f.filename).match(file_path) and f.name == func_name:
+                return stack[i + 1 :]
+    return stack
+
+
 def _format_expr_creation_stack():
     # TODO use inspect.stack() instead of traceback.extract_stack() for more
     # context lines + within-line position of the instruction
 
-    fpath = pathlib.Path(__file__).parent
-    pypath = pathlib.Path(sys.base_prefix)
     stack = traceback.extract_stack()
-
-    def not_skrub(f):
-        return not pathlib.Path(f.filename).is_relative_to(fpath)
-
-    def is_shell(f):
-        return pathlib.Path(f.filename).is_relative_to(pypath) or f.filename in [
-            "<frozen runpy>",
-            "<stdin>",
-        ]
-
-    stack = itertools.takewhile(not_skrub, itertools.dropwhile(is_shell, stack))
+    stack = _remove_shell_frames(stack)
+    fpath = pathlib.Path(__file__).parent
+    stack = itertools.takewhile(
+        lambda f: not pathlib.Path(f.filename).is_relative_to(fpath), stack
+    )
     return traceback.format_list(stack)
 
 
@@ -140,7 +143,10 @@ class ExprImpl:
             self.__dict__.update(bound.arguments)
             self.results = {}
             self.errors = {}
-            self._creation_stack_lines = _format_expr_creation_stack()
+            try:
+                self._creation_stack_lines = _format_expr_creation_stack()
+            except Exception:
+                self._creation_stack_lines = None
             self.is_X = False
             self.is_y = False
             if "name" not in self.__dict__:
