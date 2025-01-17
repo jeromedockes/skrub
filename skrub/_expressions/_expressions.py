@@ -371,8 +371,7 @@ class Expr:
         preview = self._skrub_impl.preview_if_available()
         if preview is _Constants.NO_VALUE:
             return result
-        indented = "\n".join("    " + line for line in repr(preview).splitlines())
-        return f"{result}\nPreview:\n――――――――\n{indented}"
+        return f"{result}\nPreview:\n――――――――\n{preview!r}"
 
     def _repr_html_(self):
         report = self.skb.get_report()
