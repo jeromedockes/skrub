@@ -299,6 +299,20 @@ class Expr:
         # TODO: unique & sort?
         return names
 
+    def _ipython_key_completions_(self):
+        preview = self._skrub_impl.preview_if_available()
+        if preview is _Constants.NO_VALUE:
+            return []
+        try:
+            return preview._ipython_key_completions_()
+        except AttributeError:
+            pass
+        try:
+            return list(preview.keys())
+        except Exception:
+            pass
+        return []
+
     @property
     def __signature__(self):
         preview = self._skrub_impl.preview_if_available()
