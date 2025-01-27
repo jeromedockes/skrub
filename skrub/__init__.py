@@ -37,6 +37,7 @@ from ._recipe import (
 from ._reporting import TableReport, patch_display, unpatch_display
 from ._select_cols import Drop, DropCols, SelectCols
 from ._similarity_encoder import SimilarityEncoder
+from ._string_encoder import StringEncoder
 from ._table_vectorizer import TableVectorizer
 from ._tabular_learner import tabular_learner
 from ._text_encoder import TextEncoder
@@ -90,5 +91,6 @@ __all__ = [
     "choose_bool",
     "selectors",
     "TextEncoder",
+    "StringEncoder",
     "column_associations",
 ]
