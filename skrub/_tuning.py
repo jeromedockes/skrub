@@ -878,6 +878,9 @@ class BoolChoice(Choice):
     def __repr__(self):
         return "choose_bool()"
 
+    def if_else(self, if_true, if_false):
+        return self.match({True: if_true, False: if_false})
+
 
 def choose_bool(name=None):
     """Construct a choice between False and True."""

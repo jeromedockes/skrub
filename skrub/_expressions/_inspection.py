@@ -75,7 +75,7 @@ def _get_output_dir(output_dir, overwrite):
             / f"full_expr_report_{now}_{random_string()}"
         )
     else:
-        output_dir = Path(output_dir)
+        output_dir = Path(output_dir).expanduser().resolve()
         if output_dir.exists():
             if overwrite:
                 shutil.rmtree(output_dir)
