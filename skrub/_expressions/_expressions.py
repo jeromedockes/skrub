@@ -574,24 +574,35 @@ class SkrubNamespace:
 
         return clone(self._expr, drop_preview_data=True)
 
-    def get_estimator(self):
+    def get_estimator(self, fitted=False):
         from ._estimator import ExprTransformer
 
-        return ExprTransformer(self._get_clone())
+        estimator = ExprTransformer(self._get_clone())
+        if not fitted:
+            return estimator
+        return estimator.fit(self.get_data())
 
-    def get_grid_search(self, **kwargs):
+    def get_grid_search(self, *, fitted=False, **kwargs):
         from sklearn.model_selection import GridSearchCV
 
         from ._estimator import ParamSearch
 
-        return ParamSearch(self._get_clone(), GridSearchCV(None, None, **kwargs))
+        search = ParamSearch(self._get_clone(), GridSearchCV(None, None, **kwargs))
+        if not fitted:
+            return search
+        return search.fit(self.get_data())
 
-    def get_randomized_search(self, **kwargs):
+    def get_randomized_search(self, *, fitted=False, **kwargs):
         from sklearn.model_selection import RandomizedSearchCV
 
         from ._estimator import ParamSearch
 
-        return ParamSearch(self._get_clone(), RandomizedSearchCV(None, None, **kwargs))
+        search = ParamSearch(
+            self._get_clone(), RandomizedSearchCV(None, None, **kwargs)
+        )
+        if not fitted:
+            return search
+        return search.fit(self.get_data())
 
     def cross_validate(self, environment=None, **kwargs):
         from ._estimator import cross_validate
