@@ -108,6 +108,7 @@ class UninitializedVariable(KeyError):
 def _remove_shell_frames(stack):
     shells = [
         (pathlib.Path("IPython", "core", "interactiveshell.py"), "run_code"),
+        (pathlib.Path("IPython", "utils", "py3compat.py"), "execfile"),
         ("code.py", "runcode"),
     ]
     for i, f in enumerate(stack):

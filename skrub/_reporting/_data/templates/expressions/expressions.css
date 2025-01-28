@@ -51,6 +51,10 @@ html {
     background: #eee;
 }
 
+.node-creation-stack {
+    font-size: 1rem;
+}
+
 .main-nav:not([data-is-open]){
     display: none;
 }
