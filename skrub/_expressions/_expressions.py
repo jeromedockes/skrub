@@ -841,6 +841,8 @@ class GetItem(ExprImpl):
         return e.parent[e.key]
 
     def __repr__(self):
+        if isinstance(self.key, Expr):
+            return f"<{self.__class__.__name__}>"
         r = _get_repr_formatter()
         return f"<{self.__class__.__name__} {r.repr(self.key)}>"
 
