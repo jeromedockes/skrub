@@ -31,6 +31,16 @@ def _prune_cache(expr, mode, *args, **kwargs):
             node._skrub_impl.results.pop(mode, None)
 
 
+def _check_env(environment, caller_name):
+    """Helper to detect the mistake eg fit(X) instead of fit({'X': X})"""
+    if not isinstance(environment, dict):
+        raise TypeError(
+            f"The first argument to {caller_name!r} should be a dictionary of input"
+            f" values, for example: {caller_name}({{'X': df, 'other_table_name':"
+            " other_df, ...})"
+        )
+
+
 class ExprEstimator(BaseEstimator):
     def __init__(self, expr):
         self.expr = expr
@@ -39,15 +49,18 @@ class ExprEstimator(BaseEstimator):
         return CompatibleExprEstimator(clone_expr(self.expr))
 
     def fit(self, environment):
+        _check_env(environment, "fit")
         _ = self.fit_transform(environment)
         return self
 
     def fit_transform(self, environment):
+        _check_env(environment, "fit_transform")
         callback = partial(_prune_cache, self.expr, "fit_transform")
         env = environment | {"_callback": callback}
         return evaluate(self.expr, "fit_transform", env, clear=True)
 
     def _eval_in_mode(self, mode, environment):
+        _check_env(environment, mode)
         callback = partial(_prune_cache, self.expr, mode)
         env = environment | {"_callback": callback}
         return evaluate(self.expr, mode, env, clear=True)
