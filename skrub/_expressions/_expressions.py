@@ -575,9 +575,9 @@ class SkrubNamespace:
         return clone(self._expr, drop_preview_data=True)
 
     def get_estimator(self, fitted=False):
-        from ._estimator import ExprTransformer
+        from ._estimator import ExprEstimator
 
-        estimator = ExprTransformer(self._get_clone())
+        estimator = ExprEstimator(self._get_clone())
         if not fitted:
             return estimator
         return estimator.fit(self.get_data())

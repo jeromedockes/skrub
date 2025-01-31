@@ -31,12 +31,12 @@ def _prune_cache(expr, mode, *args, **kwargs):
             node._skrub_impl.results.pop(mode, None)
 
 
-class ExprTransformer(BaseEstimator):
+class ExprEstimator(BaseEstimator):
     def __init__(self, expr):
         self.expr = expr
 
     def _sklearn_compatible_estimator(self):
-        return CompatibleExprTransformer(clone_expr(self.expr))
+        return CompatibleExprEstimator(clone_expr(self.expr))
 
     def fit(self, environment):
         _ = self.fit_transform(environment)
@@ -93,7 +93,7 @@ class ExprTransformer(BaseEstimator):
         return node._skrub_impl.estimator_
 
 
-class CompatibleExprTransformer(ExprTransformer):
+class CompatibleExprEstimator(ExprEstimator):
     @property
     def _estimator_type(self):
         try:
@@ -240,7 +240,7 @@ class ParamSearch(BaseEstimator):
             y = evaluate(clone_expr(X_y["y"]), "fit_transform", environment)
         else:
             y = None
-        self.estimator_ = CompatibleExprTransformer(clone_expr(self.expr))
+        self.estimator_ = CompatibleExprEstimator(clone_expr(self.expr))
         self.search_ = clone(self.search)
         self.estimator_.set_fit_request(environment=True)
         self.search_.estimator = self.estimator_
@@ -289,7 +289,7 @@ class ParamSearch(BaseEstimator):
     def best_estimator_(self):
         if not hasattr(self, "search_"):
             attribute_error(self, "best_estimator_")
-        return ExprTransformer(self.search_.best_estimator_.expr)
+        return ExprEstimator(self.search_.best_estimator_.expr)
 
     def get_cv_results_table(self, return_metadata=False, detailed=False):
         import pandas as pd
