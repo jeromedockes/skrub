@@ -286,7 +286,9 @@ class Expr:
         impl = self._skrub_impl
         if isinstance(impl, GetAttr):
             return Expr(CallMethod(impl.parent, impl.attr_name, args, kwargs))
-        return Expr(Call(self, args, kwargs, globals={}, closure=()))
+        return Expr(
+            Call(self, args, kwargs, globals={}, closure=(), defaults=(), kwdefaults={})
+        )
 
     @_with_preview_evaluation
     def __len__(self):
@@ -928,6 +930,26 @@ class CallMethod(ExprImpl):
 
 
 def deferred(func):
+    if not hasattr(func, "__code__"):
+
+        @_with_check_call_return_value
+        @_with_preview_evaluation
+        @functools.wraps(func)
+        def inner(*args, **kwargs):
+            return Expr(
+                Call(
+                    func,
+                    args,
+                    kwargs,
+                    globals={},
+                    closure=(),
+                    defaults=(),
+                    kwdefaults={},
+                )
+            )
+
+        return inner
+
     @_with_check_call_return_value
     @_with_preview_evaluation
     @functools.wraps(func)
