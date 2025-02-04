@@ -32,10 +32,8 @@ pred = X.skb.apply(
 pred
 
 # %%
-search = pred.skb.get_randomized_search(verbose=1)
+search = pred.skb.get_randomized_search(fitted=True, verbose=1)
 
-# single param search
-search.fit({"X": features, "y": target})
 print(search.get_cv_results_table())
 
 # %%
