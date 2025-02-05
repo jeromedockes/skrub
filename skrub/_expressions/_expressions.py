@@ -1,6 +1,7 @@
 import dis
 import enum
 import functools
+import html
 import inspect
 import itertools
 import operator
@@ -394,6 +395,12 @@ class Expr:
         report = self.skb.get_report()
         if hasattr(report, "_repr_html_"):
             report = report._repr_html_()
+            title = html.escape(repr(self._skrub_impl))
+            # TODO: expose "summary" in TableReport?
+            report = report.replace(
+                '<div id="report">',
+                f'<div id="report">\n<pre>{title}\nPreview:\n</pre>',
+            )
         return report
 
 
