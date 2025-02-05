@@ -4,11 +4,11 @@ Hyperparameter grids
 
 This module provides the functionality that allows specifying ranges of
 hyperparameters directly inside the estimators when adding steps to a
-``skrub.Recipe``. They are the low-level building blocks that allow users to
+skrub expression. They are the low-level building blocks that allow users to
 write code like:
 
->>> recipe.add(choose_from([PCA(), SelectKBest()]))  # doctest: +SKIP
->>> recipe.add(Ridge(alpha=choose_float(0.01, 100.0, log=True)))  # doctest: +SKIP
+>>> X.apply(choose_from([PCA(), SelectKBest()]), y=y)  # doctest: +SKIP
+>>> X.apply(Ridge(alpha=choose_float(0.01, 100.0, log=True)), y=y)  # doctest: +SKIP
 
 The main components are classes that represent ranges of hyperparameters, such
 as ``Choice``, and the ``expand_grid`` function, which inspects a pipeline

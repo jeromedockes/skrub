@@ -17,7 +17,6 @@ from numpydoc.validate import validate
 
 DOCSTRING_TEMP_IGNORE_SET = {
     # TODO remove
-    "skrub._recipe",
     "skrub._tuning",
     "skrub._select_cols.Drop",
     "skrub._table_vectorizer.SuperVectorizer",

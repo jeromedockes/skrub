@@ -26,14 +26,6 @@ from ._interpolation_joiner import InterpolationJoiner
 from ._joiner import Joiner
 from ._minhash_encoder import MinHashEncoder
 from ._multi_agg_joiner import MultiAggJoiner
-from ._recipe import (
-    Recipe,
-    choose_bool,
-    choose_float,
-    choose_from,
-    choose_int,
-    optional,
-)
 from ._reporting import TableReport, patch_display, unpatch_display
 from ._select_cols import Drop, DropCols, SelectCols
 from ._similarity_encoder import SimilarityEncoder
@@ -43,6 +35,13 @@ from ._tabular_learner import tabular_learner
 from ._text_encoder import TextEncoder
 from ._to_categorical import ToCategorical
 from ._to_datetime import ToDatetime, to_datetime
+from ._tuning import (
+    choose_bool,
+    choose_float,
+    choose_from,
+    choose_int,
+    optional,
+)
 
 check_dependencies()
 
