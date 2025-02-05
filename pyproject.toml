@@ -33,6 +33,7 @@ dependencies = [
     "jinja2>=3.1.2",
     "matplotlib>=3.4.3",
     "requests>=2.25.0",
+    "pydot",
 ]
 
 [tool.setuptools.dynamic]
