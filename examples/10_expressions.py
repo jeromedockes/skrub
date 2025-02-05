@@ -347,16 +347,29 @@ predictions = baskets.skb.apply(HistGradientBoostingClassifier(), y=fraud_flags)
 predictions
 
 # %%
+# Getting a full report for the pipeline
+# --------------------------------------
+#
 # We are now done building up our pipeline: we have reached the last step,
 # which evaluates to the predicted fraud flags.
 #
-# Once we have this final expression which yields the output of our pipeline,
-# we can ask it for different things such as cross-validation scores or an
-# estimator that we can fit, serialize, and later apply to unseen data.
+# We can ask it for a full report. It is an HTML output in which we can
+# inspect each intermediate result in the computation. It does not display
+# inline in a notebook but rather creates a folder on the filesystem, so we do
+# not run it in this example but you can see the result
+# `here <../_static/credit_fraud_report/index.html>`_.
+# Click on the node in the graph to see details. The command to obtain it is::
+#
+#     predictions.skb.full_report()
+#
+# `See the output <../_static/credit_fraud_report/index.html>`_.
 
 # %%
 # Obtaining and fitting an estimator
 # ----------------------------------
+#
+# We can now ask skrub for different things such as cross-validation scores or an
+# estimator that we can fit, serialize, and later apply to unseen data (shown below).
 #
 # To cross-validate our pipeline on the data we already provided:
 
@@ -432,6 +445,8 @@ loaded.predict({"baskets": new_baskets, "products": new_products})
 #     import skrub
 #     import skrub.datasets
 #     from skrub import selectors as s
+#
+#     dataset = skrub.datasets.fetch_credit_fraud()
 #
 #     products = skrub.var("products", dataset.products)
 #     baskets = skrub.var("baskets", dataset.baskets[["ID"]]).skb.mark_as_x()
