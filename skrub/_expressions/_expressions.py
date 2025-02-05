@@ -490,6 +490,10 @@ class SkrubNamespace:
 
         return evaluate(self._expr, mode=mode, environment=environment, clear=True)
 
+    def eval(self, environment=None, mode="preview"):
+        """alias for get_value -- TODO choose & keep only 1 of the 2."""
+        return self.get_value(environment=environment, mode=mode)
+
     @property
     def preview(self):
         return self.get_value()
