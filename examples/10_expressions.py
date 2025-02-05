@@ -6,38 +6,39 @@ Skrub provides utilities to build complex, flexible machine-learning pipelines.
 They solve several problems that are not easily addressed with the standard
 scikit-learn tools such as the ``Pipeline`` and ``ColumnTransformer``.
 
-A machine-learning estimator may need to transform and extract information from
-several tables of different shapes (for example, we may have "Customers",
-"Orders" and "Products" tables). But scikit-learn estimators (including the
-``Pipeline``) expect their input to be a single design matrix ``X`` and an
-array of targets ``y`` in which each row corresponds to a sample. They do not
-easily accommodate operations that change the number of rows such as aggregating
-or filtering, or that combine several tables, such as joins.
+**Multiple tables:** a machine-learning estimator may need to transform and
+extract information from several tables of different shapes (for example, we
+may have "Customers", "Orders" and "Products" tables). But scikit-learn
+estimators (including the ``Pipeline``) expect their input to be a single
+design matrix ``X`` and an array of targets ``y`` in which each row corresponds
+to a sample. They do not easily accommodate operations that change the number
+of rows such as aggregating or filtering, or that combine several tables, such
+as joins.
 
-The required transformations often involve a mix of scikit-learn estimators to
-fit, and of operations on dataframes such as aggregations and joins. Often,
-transformations should only be applied to some of the columns in the input
-table. These requirements can be met using scikit-learn's
-``FunctionTransformer``, ``Pipeline``, ``ColumnTransformer`` and
+**DataFrame wrangling:** the required transformations often involve a mix of
+scikit-learn estimators to fit, and of operations on dataframes such as
+aggregations and joins. Often, transformations should only be applied to some
+of the columns in the input table. These requirements can be met using
+scikit-learn's ``FunctionTransformer``, ``Pipeline``, ``ColumnTransformer`` and
 ``FeatureUnion`` but this can become verbose and difficult to maintain.
 
-Declaring all the steps in a pipeline before fitting it to see the result can
-result in a slow development cycle, in which mistakes in the early steps of the
-pipeline are only discovered later, when we fit the pipeline. We would like a
-more interactive process where we immediately obtain previews of the
-intermediate results (or errors).
+**Iterative development:** declaring all the steps in a pipeline before fitting
+it to see the result can result in a slow development cycle, in which mistakes
+in the early steps of the pipeline are only discovered later, when we fit the
+pipeline. We would like a more interactive process where we immediately obtain
+previews of the intermediate results (or errors).
 
-A machine-learning pipeline involves many choices, such as which tables to use,
-which features to construct and include, which estimators to fit, and the
-estimators' hyperparameters. We want to provide a range of possible outcomes
-for these choices, and use validation scores to select the best option for each
-(hyperparameter tuning). Scikit-learn offers ``GridSearchCV``,
-``RandomizedSearchCV`` and their halving counterparts to perform the
-hyperparameter tuning. However, the grid of possible hyperparameters must be
-provided separately from the pipeline itself. This can get cumbersome for
-complex pipelines, especially when we want to tune not only simple
-hyperparameters but also more structural aspects of the pipeline such as which
-estimators to use.
+**Hyperparameter tuning:** a machine-learning pipeline involves many choices,
+such as which tables to use, which features to construct and include, which
+estimators to fit, and the estimators' hyperparameters. We want to provide a
+range of possible outcomes for these choices, and use validation scores to
+select the best option for each (hyperparameter tuning). Scikit-learn offers
+``GridSearchCV``, ``RandomizedSearchCV`` and their halving counterparts to
+perform the hyperparameter tuning. However, the grid of possible
+hyperparameters must be provided separately from the pipeline itself. This can
+get cumbersome for complex pipelines, especially when we want to tune not only
+simple hyperparameters but also more structural aspects of the pipeline such as
+which estimators to use.
 
 Skrub can help us tackle these challenges. In this example, we show a pipeline
 to handle a dataset with 2 tables. Despite being very simple, this pipeline
@@ -72,9 +73,9 @@ dataset.baskets
 # Each basket contains one or more products. We have a ``products`` table
 # detailing the actual content of each basket. Each row in the ``products``
 # table corresponds to a type of product that was present in the basket
-# (multiple units may have been bought, which is why there is a ``"Nbr"``
-# column). Products can be associated with their basket through the
-# ``"basket_ID"`` column.
+# (multiple units may have been bought, which is why there is a
+# ``"Nbr_of_prod_purchas"`` column). Products can be associated with their
+# basket through the ``"basket_ID"`` column.
 
 # %%
 dataset.products
@@ -106,7 +107,7 @@ dataset.products
 #
 # We can see the difficulty: the products need to be aggregated before joining
 # to ``baskets``, and in order to compute a meaningful aggregation, they must
-# be vectorized _before_ the aggregation. So we have a ``TableVectorizer`` to
+# be vectorized *before* the aggregation. So we have a ``TableVectorizer`` to
 # fit on a table which does not (yet) have the same number of rows as the
 # target ``y`` — something that the scikit-learn ``Pipeline``, with its
 # single-input, linear structure, does not accommodate.
@@ -168,7 +169,7 @@ products = skrub.var("products")
 # We can then apply transformations to ``products`` to start building up our
 # pipeline. Because we know that when we run the pipeline, a pandas DataFrame
 # will be provided as the ``"products"`` input, we manipulate ``products`` as
-# we would a pandas dataframe.
+# we would manipulate a pandas dataframe.
 #
 # For example, we can write:
 
@@ -201,7 +202,7 @@ with_total.skb.eval({"products": products_df})
 
 # %%
 # Note the added "total_price" column in the result above. (We show it here for
-# didactic purposes but in practice you will rarely need call ``eval``
+# didactic purposes but in practice you will rarely need to call ``eval``
 # yourself)
 
 # %%
@@ -212,7 +213,7 @@ with_total.skb.eval({"products": products_df})
 # our computation or what the result will look like:
 
 # %%
-print(with_total)
+with_total
 
 # %%
 # That's not very helpful.
@@ -232,14 +233,11 @@ products = skrub.var("products", placeholder=products_df)
 with_total = products.assign(
     total_price=products["Nbr_of_prod_purchas"] * products["cash_price"]
 )
-print(with_total)
+with_total
 
 # %%
 # The display of our expression now includes a preview of the result, making
 # debugging easier.
-#
-# (When the expression is the output of a cell and the result of the preview is
-# a dataframe, we get a ``TableReport`` as the display.)
 #
 # We can also access this preview result directly:
 
@@ -258,7 +256,7 @@ print(type(preview_result))
 # Moreover, we need to mark those variables as the design matrix and the
 # prediction targets respectively, so that skrub can know which tables to split
 # when running cross-validation or hyperparameter search. We can do this with
-# `.mark_as_x()` and `.mark_as_y()`:
+# ``.mark_as_x()`` and ``.mark_as_y()``:
 
 # %%
 baskets_df = dataset.baskets[["ID"]]  # just a regular dataframe
