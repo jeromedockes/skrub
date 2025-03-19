@@ -333,51 +333,40 @@ class DatetimeEncoder(SingleColumnTransformer):
                 f"Column {sbd.name(column)!r} does not have Date or Datetime dtype."
             )
         if self.resolution is None:
-            self._partial_features = []
+            self.extracted_features_ = []
         else:
             idx_level = _TIME_LEVELS.index(self.resolution)
             if _is_date(column):
                 idx_level = min(idx_level, _TIME_LEVELS.index("day"))
-            self._partial_features = _TIME_LEVELS[: idx_level + 1]
+            self.extracted_features_ = _TIME_LEVELS[: idx_level + 1]
         if self.add_total_seconds:
-            self._partial_features.append("total_seconds")
+            self.extracted_features_.append("total_seconds")
         if self.add_weekday:
-            self._partial_features.append("weekday")
+            self.extracted_features_.append("weekday")
         if self.add_day_of_year:
-            self._partial_features.append("day_of_year")
+            self.extracted_features_.append("day_of_year")
 
         # Adding transformers for periodic encoding
-        self._required_transformers = {}
-
-        col_name = sbd.name(column)
-        self.extracted_features_ = [
-            f"{col_name}_{_feat}" for _feat in self._partial_features
-        ]
+        self._periodic_transformers = {}
 
         # Iterating over all attributes that end with _encoding to use the default
         # parameters
-        if self.periodic_encoding is not None:
-            enc_attr = ["year", "month", "weekday", "hour"][: idx_level + 1]
-            for enc_feature in enc_attr:
-                if self.periodic_encoding == "circular":
-                    self._required_transformers[enc_feature] = _CircularEncoder(
-                        period=_DEFAULT_ENCODING_PERIODS[enc_feature]
-                    )
-                elif self.periodic_encoding == "spline":
-                    self._required_transformers[enc_feature] = _SplineEncoder(
-                        period=_DEFAULT_ENCODING_PERIODS[enc_feature],
-                        n_splines=_DEFAULT_ENCODING_SPLINES[enc_feature],
-                    )
+        if self.periodic_encoding is None:
+            return self.transform(column)
+        for periodic_feature in set(self.extracted_features_).intersection(
+            _DEFAULT_ENCODING_PERIODS.keys()
+        ):
+            if self.periodic_encoding == "circular":
+                self._periodic_transformers[periodic_feature] = _CircularEncoder(
+                    period=_DEFAULT_ENCODING_PERIODS[periodic_feature]
+                )
+            elif self.periodic_encoding == "spline":
+                self._required_transformers[periodic_feature] = _SplineEncoder(
+                    period=_DEFAULT_ENCODING_PERIODS[periodic_feature],
+                    n_splines=_DEFAULT_ENCODING_SPLINES[periodic_feature],
+                )
 
-            for _case, t in self._required_transformers.items():
-                _feat = _get_dt_feature(column, _case)
-                _feat_name = sbd.name(_feat) + "_" + _case
-                _feat = sbd.rename(_feat, _feat_name)
-                # Filling null values for periodc encoder
-                t.fit(self._fill_nulls(_feat))
-                self.extracted_features_ += t.all_outputs_
-
-        return self.transform(column)
+        return self._transform(column, fit_periodic_encoders=True)
 
     def transform(self, column):
         """Transform a column.
@@ -392,43 +381,25 @@ class DatetimeEncoder(SingleColumnTransformer):
         transformed : DataFrame
             The extracted features.
         """
+        return self._transform(column, fit_periodic_encoders=False)
+
+    def _transform(self, column, fit_periodic_encoders):
         check_is_fitted(self, "extracted_features_")
         name = sbd.name(column)
-
-        # Checking again which values are null if calling only transform
-        not_nulls = ~sbd.is_null(column)
-        # Replacing filled values back with nulls
-        null_mask = sbd.copy_index(column, sbd.all_null_like(sbd.to_float32(column)))
-
         all_extracted = []
-        for feature in self._partial_features:
+        for feature in self.extracted_features_:
             extracted = _get_dt_feature(column, feature).rename(f"{name}_{feature}")
             extracted = sbd.to_float32(extracted)
-            all_extracted.append(extracted)
-
-        _new_features = []
-        for _case, t in self._required_transformers.items():
-            _feat = _get_dt_feature(column, _case)
-            # filling nulls only to the feature passed to the periodic encoder
-            _transformed = t.transform(self._fill_nulls(_feat))
-
-            _new_features.append(_transformed)
-
-        # Setting the index back to that of the input column (pandas shenanigans)
-        X_out = sbd.copy_index(column, sbd.make_dataframe_like(column, all_extracted))
-        X_out = sbd.concat_horizontal(X_out, *_new_features)
-
-        # Censoring all the null features
-        X_out = sbd.where_row(X_out, not_nulls, null_mask)
-
-        return X_out
-
-    def _fill_nulls(self, column):
-        # Fill all null values in the column with an arbitrary value
-        # This value will be replaced by nulls at the end of the transformation
-        fill_value = 0
-
-        return sbd.fill_nulls(column, fill_value)
+            if (
+                transformer := self._periodic_transformers.get(feature, None)
+            ) is not None:
+                method = "fit_transform" if fit_periodic_encoders else "transform"
+                all_extracted.extend(
+                    sbd.to_column_list(getattr(transformer, method)(extracted))
+                )
+            else:
+                all_extracted.append(extracted)
+        return sbd.make_dataframe_like(column, all_extracted)
 
     def _check_params(self):
         allowed = _TIME_LEVELS + [None]
