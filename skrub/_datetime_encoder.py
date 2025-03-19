@@ -28,8 +28,8 @@ _TIME_LEVELS = [
     "nanosecond",
 ]
 
-_DEFAULT_ENCODING_PERIODS = {"year": 366, "month": 30, "weekday": 7, "hour": 24}
-_DEFAULT_ENCODING_SPLINES = {"year": 12, "month": 4, "weekday": 7, "hour": 24}
+_DEFAULT_ENCODING_PERIODS = {"month": 12, "day": 30, "weekday": 7, "hour": 24}
+_DEFAULT_ENCODING_SPLINES = {"month": 12, "day": 4, "weekday": 7, "hour": 24}
 
 
 @dispatch
@@ -361,7 +361,7 @@ class DatetimeEncoder(SingleColumnTransformer):
                     period=_DEFAULT_ENCODING_PERIODS[periodic_feature]
                 )
             elif self.periodic_encoding == "spline":
-                self._required_transformers[periodic_feature] = _SplineEncoder(
+                self._periodic_transformers[periodic_feature] = _SplineEncoder(
                     period=_DEFAULT_ENCODING_PERIODS[periodic_feature],
                     n_splines=_DEFAULT_ENCODING_SPLINES[periodic_feature],
                 )
@@ -469,17 +469,21 @@ class _SplineEncoder(SingleColumnTransformer):
 
         self.transformer_ = self._periodic_spline_transformer()
 
-        X_out = self.transformer_.fit_transform(sbd.to_numpy(X).reshape(-1, 1))
+        X_a = sbd.to_numpy(sbd.drop_nulls(X)).reshape(-1, 1)
+        transformed = self.transformer_.fit_transform(X_a)
+        result = np.full(
+            (len(X), transformed.shape[1]), fill_value=np.nan, dtype="float32"
+        )
+        result[~sbd.to_numpy(sbd.is_null(X))] = transformed
 
-        self.is_fitted = True
-        self.n_components_ = X_out.shape[1]
+        self.n_components_ = result.shape[1]
 
         name = sbd.name(X)
         self.all_outputs_ = [
             f"{name}_spline_{idx}" for idx in range(self.n_components_)
         ]
 
-        return self._post_process(X, X_out)
+        return self._post_process(X, result)
 
     def transform(self, X):
         """Transform a column.
@@ -495,9 +499,14 @@ class _SplineEncoder(SingleColumnTransformer):
             The extracted features.
         """
 
-        X_out = self.transformer_.transform(sbd.to_numpy(X).reshape(-1, 1))
+        X_a = sbd.to_numpy(sbd.drop_nulls(X)).reshape(-1, 1)
+        transformed = self.transformer_.transform(X_a)
+        result = np.full(
+            (len(X), transformed.shape[1]), fill_value=np.nan, dtype="float32"
+        )
+        result[~sbd.to_numpy(sbd.is_null(X))] = transformed
 
-        return self._post_process(X, X_out)
+        return self._post_process(X, result)
 
     def _post_process(self, X, result):
         result = sbd.make_dataframe_like(X, dict(zip(self.all_outputs_, result.T)))
