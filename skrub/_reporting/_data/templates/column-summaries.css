@@ -11,6 +11,7 @@
     flex-wrap: nowrap;
     gap: var(--spacing-l);
     width: max-content;
+    padding: var(--spacing-s) var(--spacing-l) var(--spacing-l) var(--spacing-l);
 }
 
 /* Increase the gap between buttons & columns to make it clearer the buttons are
