@@ -239,6 +239,7 @@ class DataOpImpl:
             self.__dict__.update(bound.arguments)
             self.results = {}
             self.errors = {}
+            self.metadata = {}
             try:
                 self._creation_stack_lines = _format_data_op_creation_stack()
             except Exception:

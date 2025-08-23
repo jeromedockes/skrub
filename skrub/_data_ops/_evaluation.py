@@ -5,9 +5,11 @@
 # the computation graph. Subclasses redefine the appropriate methods to provide
 # different functionality such as evaluating and cloning.
 
+import collections
 import copy
 import functools
 import inspect
+import time
 import types
 import typing
 import warnings
@@ -61,6 +63,7 @@ class _Computation:
 
     def __init__(self, target, generator):
         self.target_id = id(target)
+        self.target = target
         self.generator = generator
 
 
@@ -97,49 +100,38 @@ class _DataOpTraversal:
     # _DataOpTraversal subclass).
 
     def run(self, data_op):
+        self.eval_time = defaultdict(float)
         stack = [data_op]
         last_result = None
+        self.targets = {}
 
         def push(handler):
             top = stack.pop()
             generator = handler(top)
             stack.append(_Computation(top, generator))
+            self.targets[id(top)] = top
 
-        while stack:
+        def step():
+            nonlocal last_result
+
             top = stack[-1]
+            start = time.monotonic()
             try:
-                if isinstance(top, _Computation):
-                    new_top = top.generator.send(last_result)
-                    if id(new_top) in {
-                        c.target_id for c in stack if isinstance(c, _Computation)
-                    }:
-                        # If 2 computations targeting the same object are on
-                        # the stack this node is a descendant of itself: we
-                        # have a circular reference. As there is no use case
-                        # for handling such cases we raise an exception to
-                        # avoid an infinite loop.
-                        raise CircularReferenceError(
-                            "Skrub DataOps cannot contain circular references. "
-                            f"A circular reference was found in this object: {new_top}"
-                        )
-                    stack.append(new_top)
-                    last_result = None
-                elif isinstance(top, DataOp):
-                    push(self.handle_data_op)
-                elif isinstance(top, _BUILTIN_MAP):
-                    push(self.handle_mapping)
-                elif isinstance(top, _BUILTIN_SEQ):
-                    push(self.handle_seq)
-                elif isinstance(top, slice):
-                    push(self.handle_slice)
-                elif isinstance(top, _choosing.BaseChoice):
-                    push(self.handle_choice)
-                elif isinstance(top, _choosing.Match):
-                    push(self.handle_choice_match)
-                elif isinstance(top, BaseEstimator):
-                    push(self.handle_estimator)
-                else:
-                    push(self.handle_value)
+                new_top = top.generator.send(last_result)
+                if id(new_top) in {
+                    c.target_id for c in stack if isinstance(c, _Computation)
+                }:
+                    # If 2 computations targeting the same object are on
+                    # the stack this node is a descendant of itself: we
+                    # have a circular reference. As there is no use case
+                    # for handling such cases we raise an exception to
+                    # avoid an infinite loop.
+                    raise CircularReferenceError(
+                        "Skrub DataOps cannot contain circular references. "
+                        f"A circular reference was found in this object: {new_top}"
+                    )
+                stack.append(new_top)
+                last_result = None
             except StopIteration as e:
                 # The generator returned, the returned value is in the
                 # `StopIteration`'s `value` attribute.
@@ -148,6 +140,31 @@ class _DataOpTraversal:
                 # and PEPs linked within) for a refresher on generators
                 last_result = e.value
                 stack.pop()
+            finally:
+                elapsed = time.monotonic() - start
+                self.eval_time[top.target_id] += elapsed
+
+        while stack:
+            top = stack[-1]
+            if isinstance(top, _Computation):
+                step()
+            elif isinstance(top, DataOp):
+                push(self.handle_data_op)
+            elif isinstance(top, _BUILTIN_MAP):
+                push(self.handle_mapping)
+            elif isinstance(top, _BUILTIN_SEQ):
+                push(self.handle_seq)
+            elif isinstance(top, slice):
+                push(self.handle_slice)
+            elif isinstance(top, _choosing.BaseChoice):
+                push(self.handle_choice)
+            elif isinstance(top, _choosing.Match):
+                push(self.handle_choice_match)
+            elif isinstance(top, BaseEstimator):
+                push(self.handle_estimator)
+            else:
+                push(self.handle_value)
+
         return last_result
 
     def handle_data_op(self, data_op):
@@ -262,6 +279,10 @@ class _Evaluator(_DataOpTraversal):
             pass
         result = yield from self._eval_data_op(data_op)
         self._store(data_op, result)
+        # let evaluator update the timings
+        yield
+        duration = self.eval_time[id(data_op)]
+        data_op._skrub_impl.metadata.setdefault(self.mode, {})['time'] = duration
         for cb in self.callbacks:
             cb(data_op, result)
         return result
@@ -609,9 +630,11 @@ def clear_results(data_op, mode=None):
         if mode is None:
             n._skrub_impl.results = {}
             n._skrub_impl.errors = {}
+            n._skrub_impl.metadata = {}
         else:
             n._skrub_impl.results.pop(mode, None)
             n._skrub_impl.errors.pop(mode, None)
+            n._skrub_impl.metadata.pop(mode, None)
 
 
 def _choice_display_names(choices):
@@ -824,7 +847,9 @@ def _expand_grid(graph, grid):
             if isinstance(choice, _choosing.Choice):
                 return [choice.chosen_outcome_idx or 0]
             else:
-                return [choice.default() if (o := choice.chosen_outcome) is None else o]
+                return [
+                    choice.default() if (o := choice.chosen_outcome) is None else o
+                ]
         else:
             if isinstance(choice, _choosing.Choice):
                 return list(range(len(choice.outcomes)))
