@@ -63,13 +63,14 @@ class _Computation:
 
     def __init__(self, target, generator):
         self.target_id = id(target)
-        self.target = target
         self.generator = generator
 
 
 class CircularReferenceError(ValueError):
     pass
 
+class _CurrentTaskDuration:
+    pass
 
 class _DataOpTraversal:
     """Base class for objects that manipulate DataOps."""
@@ -100,16 +101,22 @@ class _DataOpTraversal:
     # _DataOpTraversal subclass).
 
     def run(self, data_op):
-        self.eval_time = defaultdict(float)
+        eval_duration = defaultdict(float)
         stack = [data_op]
+        running = set()
         last_result = None
-        self.targets = {}
 
         def push(handler):
-            top = stack.pop()
+            top = pop()
             generator = handler(top)
             stack.append(_Computation(top, generator))
-            self.targets[id(top)] = top
+            running.add(id(top))
+
+        def pop():
+            top = stack.pop()
+            if isinstance(top, _Computation):
+                running.remove(top.target_id)
+            return top
 
         def step():
             nonlocal last_result
@@ -118,9 +125,7 @@ class _DataOpTraversal:
             start = time.monotonic()
             try:
                 new_top = top.generator.send(last_result)
-                if id(new_top) in {
-                    c.target_id for c in stack if isinstance(c, _Computation)
-                }:
+                if id(new_top) in running:
                     # If 2 computations targeting the same object are on
                     # the stack this node is a descendant of itself: we
                     # have a circular reference. As there is no use case
@@ -139,15 +144,18 @@ class _DataOpTraversal:
                 # https://docs.python.org/3/reference/expressions.html#yield-expressions
                 # and PEPs linked within) for a refresher on generators
                 last_result = e.value
-                stack.pop()
+                pop()
             finally:
                 elapsed = time.monotonic() - start
-                self.eval_time[top.target_id] += elapsed
+                eval_duration[top] += elapsed
 
         while stack:
             top = stack[-1]
             if isinstance(top, _Computation):
                 step()
+            elif isinstance(top, _CurrentTaskDuration):
+                pop()
+                last_result = eval_duration[stack[-1]]
             elif isinstance(top, DataOp):
                 push(self.handle_data_op)
             elif isinstance(top, _BUILTIN_MAP):
@@ -279,10 +287,8 @@ class _Evaluator(_DataOpTraversal):
             pass
         result = yield from self._eval_data_op(data_op)
         self._store(data_op, result)
-        # let evaluator update the timings
-        yield
-        duration = self.eval_time[id(data_op)]
-        data_op._skrub_impl.metadata.setdefault(self.mode, {})['time'] = duration
+        duration = yield _CurrentTaskDuration()
+        data_op._skrub_impl.metadata.setdefault(self.mode, {})['duration'] = duration
         for cb in self.callbacks:
             cb(data_op, result)
         return result
