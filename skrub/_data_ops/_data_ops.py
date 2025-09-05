@@ -266,6 +266,7 @@ class DataOpImpl:
         new = self.__replace__()
         new.results = self.results.copy()
         new.errors = self.errors.copy()
+        new.metadata = self.metadata.copy()
         return new
 
     def compute(self, e, mode, environment):
