@@ -101,10 +101,10 @@ class _DataOpTraversal:
     # _DataOpTraversal subclass).
 
     def run(self, data_op):
-        eval_duration = defaultdict(float)
         stack = [data_op]
-        running = set()
         last_result = None
+        running = set()
+        eval_duration = defaultdict(float)
 
         def push(handler):
             top = pop()
@@ -122,9 +122,20 @@ class _DataOpTraversal:
             nonlocal last_result
 
             top = stack[-1]
-            start = time.monotonic()
             try:
+                start = time.monotonic()
                 new_top = top.generator.send(last_result)
+                stop = time.monotonic()
+            except StopIteration as e:
+                # The generator returned, the returned value is in the
+                # `StopIteration`'s `value` attribute.
+                # See the python documentation (eg
+                # https://docs.python.org/3/reference/expressions.html#yield-expressions
+                # and PEPs linked within) for a refresher on generators
+                stop = time.monotonic()
+                last_result = e.value
+                pop()
+            else:
                 if id(new_top) in running:
                     # If 2 computations targeting the same object are on
                     # the stack this node is a descendant of itself: we
@@ -137,17 +148,8 @@ class _DataOpTraversal:
                     )
                 stack.append(new_top)
                 last_result = None
-            except StopIteration as e:
-                # The generator returned, the returned value is in the
-                # `StopIteration`'s `value` attribute.
-                # See the python documentation (eg
-                # https://docs.python.org/3/reference/expressions.html#yield-expressions
-                # and PEPs linked within) for a refresher on generators
-                last_result = e.value
-                pop()
             finally:
-                elapsed = time.monotonic() - start
-                eval_duration[top] += elapsed
+                eval_duration[top.target_id] += (stop - start)
 
         while stack:
             top = stack[-1]
@@ -155,7 +157,7 @@ class _DataOpTraversal:
                 step()
             elif isinstance(top, _CurrentTaskDuration):
                 pop()
-                last_result = eval_duration[stack[-1]]
+                last_result = eval_duration[stack[-1].target_id]
             elif isinstance(top, DataOp):
                 push(self.handle_data_op)
             elif isinstance(top, _BUILTIN_MAP):
