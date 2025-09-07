@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 import skrub
@@ -332,3 +334,21 @@ def test_as_gen():
         return 1
 
     assert _evaluation._as_gen(g) is g
+
+
+def test_eval_duration():
+    def after(obj, duration):
+        time.sleep(duration)
+        return obj
+
+    a = skrub.as_data_op(1).skb.apply_func(after, 0.1)
+    b = skrub.as_data_op(2).skb.apply_func(after, 0.2)
+    c = a + b
+    d = (a + b + c).skb.apply_func(after, 0.15)
+
+    assert a._skrub_impl.metadata["preview"]["duration"] == pytest.approx(0.1, abs=1e-2)
+    assert b._skrub_impl.metadata["preview"]["duration"] == pytest.approx(0.2, abs=1e-2)
+    assert c._skrub_impl.metadata["preview"]["duration"] == pytest.approx(0.0, abs=1e-2)
+    assert d._skrub_impl.metadata["preview"]["duration"] == pytest.approx(
+        0.15, abs=1e-2
+    )

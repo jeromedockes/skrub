@@ -5,7 +5,6 @@
 # the computation graph. Subclasses redefine the appropriate methods to provide
 # different functionality such as evaluating and cloning.
 
-import collections
 import copy
 import functools
 import inspect
@@ -69,8 +68,10 @@ class _Computation:
 class CircularReferenceError(ValueError):
     pass
 
+
 class _CurrentTaskDuration:
     pass
+
 
 class _DataOpTraversal:
     """Base class for objects that manipulate DataOps."""
@@ -103,7 +104,13 @@ class _DataOpTraversal:
     def run(self, data_op):
         stack = [data_op]
         last_result = None
+
+        # Nodes that are the target of a Computation currently on the stack.
+        # Used to detect circular references.
         running = set()
+
+        # Total time spent evaluating each node (not counting time spent
+        # evaluating its children)
         eval_duration = defaultdict(float)
 
         def push(handler):
@@ -122,10 +129,9 @@ class _DataOpTraversal:
             nonlocal last_result
 
             top = stack[-1]
+            start = time.monotonic()
             try:
-                start = time.monotonic()
                 new_top = top.generator.send(last_result)
-                stop = time.monotonic()
             except StopIteration as e:
                 # The generator returned, the returned value is in the
                 # `StopIteration`'s `value` attribute.
@@ -136,6 +142,7 @@ class _DataOpTraversal:
                 last_result = e.value
                 pop()
             else:
+                stop = time.monotonic()
                 if id(new_top) in running:
                     # If 2 computations targeting the same object are on
                     # the stack this node is a descendant of itself: we
@@ -149,7 +156,7 @@ class _DataOpTraversal:
                 stack.append(new_top)
                 last_result = None
             finally:
-                eval_duration[top.target_id] += (stop - start)
+                eval_duration[top.target_id] += stop - start
 
         while stack:
             top = stack[-1]
@@ -290,7 +297,7 @@ class _Evaluator(_DataOpTraversal):
         result = yield from self._eval_data_op(data_op)
         self._store(data_op, result)
         duration = yield _CurrentTaskDuration()
-        data_op._skrub_impl.metadata.setdefault(self.mode, {})['duration'] = duration
+        data_op._skrub_impl.metadata.setdefault(self.mode, {})["duration"] = duration
         for cb in self.callbacks:
             cb(data_op, result)
         return result
@@ -855,9 +862,7 @@ def _expand_grid(graph, grid):
             if isinstance(choice, _choosing.Choice):
                 return [choice.chosen_outcome_idx or 0]
             else:
-                return [
-                    choice.default() if (o := choice.chosen_outcome) is None else o
-                ]
+                return [choice.default() if (o := choice.chosen_outcome) is None else o]
         else:
             if isinstance(choice, _choosing.Choice):
                 return list(range(len(choice.outcomes)))
