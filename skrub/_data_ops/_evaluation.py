@@ -127,22 +127,22 @@ class _DataOpTraversal:
 
         def step():
             nonlocal last_result
-
             top = stack[-1]
-            start = time.monotonic()
             try:
-                new_top = top.generator.send(last_result)
+                start = time.monotonic()
+                try:
+                    new_top = top.generator.send(last_result)
+                finally:
+                    eval_duration[top.target_id] += time.monotonic() - start
             except StopIteration as e:
                 # The generator returned, the returned value is in the
                 # `StopIteration`'s `value` attribute.
                 # See the python documentation (eg
                 # https://docs.python.org/3/reference/expressions.html#yield-expressions
                 # and PEPs linked within) for a refresher on generators
-                stop = time.monotonic()
                 last_result = e.value
                 pop()
             else:
-                stop = time.monotonic()
                 if id(new_top) in running:
                     # If 2 computations targeting the same object are on
                     # the stack this node is a descendant of itself: we
@@ -155,8 +155,6 @@ class _DataOpTraversal:
                     )
                 stack.append(new_top)
                 last_result = None
-            finally:
-                eval_duration[top.target_id] += stop - start
 
         while stack:
             top = stack[-1]
