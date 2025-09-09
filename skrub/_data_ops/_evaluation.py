@@ -69,8 +69,21 @@ class CircularReferenceError(ValueError):
     pass
 
 
-class _CurrentTaskDuration:
-    pass
+class _CurrentNodeDuration:
+    """
+    How much time has been spent evaluating the current node.
+
+    A generator driven by `_DataOpTraversal.run()` (the `handle_*` methods) can
+    `yield` a `_CurrentNodeDuration` instance to obtain the total time that has
+    been spent so far in the `run()` call on the node that the generator is
+    handling.
+
+    This only counts time spent on the node itself, excluding any time spent on
+    evaluating its children.
+
+    The time (in seconds) is the value of the `yield _CurrentNodeDuration()`
+    expression.
+    """
 
 
 class _DataOpTraversal:
@@ -111,7 +124,7 @@ class _DataOpTraversal:
 
         # Total time spent evaluating each node (not counting time spent
         # evaluating its children)
-        eval_duration = defaultdict(float)
+        node_durations = defaultdict(float)
 
         def push(handler):
             top = pop()
@@ -133,7 +146,7 @@ class _DataOpTraversal:
                 try:
                     new_top = top.generator.send(last_result)
                 finally:
-                    eval_duration[top.target_id] += time.monotonic() - start
+                    node_durations[top.target_id] += time.monotonic() - start
             except StopIteration as e:
                 # The generator returned, the returned value is in the
                 # `StopIteration`'s `value` attribute.
@@ -160,9 +173,9 @@ class _DataOpTraversal:
             top = stack[-1]
             if isinstance(top, _Computation):
                 step()
-            elif isinstance(top, _CurrentTaskDuration):
+            elif isinstance(top, _CurrentNodeDuration):
                 pop()
-                last_result = eval_duration[stack[-1].target_id]
+                last_result = node_durations[stack[-1].target_id]
             elif isinstance(top, DataOp):
                 push(self.handle_data_op)
             elif isinstance(top, _BUILTIN_MAP):
@@ -294,8 +307,9 @@ class _Evaluator(_DataOpTraversal):
             pass
         result = yield from self._eval_data_op(data_op)
         self._store(data_op, result)
-        duration = yield _CurrentTaskDuration()
-        data_op._skrub_impl.metadata.setdefault(self.mode, {})["duration"] = duration
+        duration = yield _CurrentNodeDuration()
+        metadata = data_op._skrub_impl.metadata.setdefault(self.mode, {})
+        metadata["eval_duration"] = duration
         for cb in self.callbacks:
             cb(data_op, result)
         return result

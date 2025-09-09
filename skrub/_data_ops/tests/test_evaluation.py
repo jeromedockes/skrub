@@ -346,9 +346,10 @@ def test_eval_duration():
     c = a + b
     d = (a + b + c).skb.apply_func(after, 0.15)
 
-    assert a._skrub_impl.metadata["preview"]["duration"] == pytest.approx(0.1, abs=1e-2)
-    assert b._skrub_impl.metadata["preview"]["duration"] == pytest.approx(0.2, abs=1e-2)
-    assert c._skrub_impl.metadata["preview"]["duration"] == pytest.approx(0.0, abs=1e-2)
-    assert d._skrub_impl.metadata["preview"]["duration"] == pytest.approx(
-        0.15, abs=1e-2
-    )
+    def get_duration(dop):
+        return dop._skrub_impl.metadata["preview"]["eval_duration"]
+
+    assert get_duration(a) == pytest.approx(0.1, abs=1e-2)
+    assert get_duration(b) == pytest.approx(0.2, abs=1e-2)
+    assert get_duration(c) == pytest.approx(0.0, abs=1e-2)
+    assert get_duration(d) == pytest.approx(0.15, abs=1e-2)

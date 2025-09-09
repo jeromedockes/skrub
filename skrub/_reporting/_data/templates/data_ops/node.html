@@ -72,10 +72,10 @@
                     <h3>Where was this step created?</h3>
                     <pre><code class="node-creation-stack">{{ node_creation_stack_description }}</code></pre>
                 </div>
-                {% if duration is not none %}
+                {% if eval_duration is not none %}
                 <div>
                     <h3>Computation time</h3>
-                    {{ "{:.2g}".format(duration) }} s
+                    {{ "{:.2g}".format(eval_duration) }} s
                 </div>
                 {% endif %}
                 {% if estimator_html_repr %}
