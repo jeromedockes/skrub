@@ -66,23 +66,22 @@ class _Computation:
 
 
 class CircularReferenceError(ValueError):
-    pass
+    """Error raised when the DataOp computation graph contains a cycle."""
 
 
 class _CurrentNodeDuration:
     """
     How much time has been spent evaluating the current node.
 
-    A generator driven by `_DataOpTraversal.run()` (the `handle_*` methods) can
-    `yield` a `_CurrentNodeDuration` instance to obtain the total time that has
-    been spent so far in the `run()` call on the node that the generator is
+    A `_DataOpTraversal.handle_*()` method can yield an instance of this class
+    to obtain the time that has been spent so far on the node that it is
     handling.
 
-    This only counts time spent on the node itself, excluding any time spent on
-    evaluating its children.
+    The result counts the time (in seconds) spent on the node itself, excluding
+    any time spent on evaluating its children, since the start of the
+    `_DataOpTraversal.run()` call.
 
-    The time (in seconds) is the value of the `yield _CurrentNodeDuration()`
-    expression.
+    The result is the value of the `yield _CurrentNodeDuration()` expression.
     """
 
 
