@@ -298,9 +298,11 @@ class _Evaluator(_DataOpTraversal):
             return self.environment[impl.name]
         return impl.results[self.mode]
 
-    def _store(self, data_op, result):
+    def _store(self, data_op, result, duration):
         """Store a result in the cache."""
         data_op._skrub_impl.results[self.mode] = result
+        metadata = data_op._skrub_impl.metadata.setdefault(self.mode, {})
+        metadata["eval_duration"] = duration
 
     def handle_data_op(self, data_op):
         try:
@@ -308,10 +310,8 @@ class _Evaluator(_DataOpTraversal):
         except KeyError:
             pass
         result = yield from self._eval_data_op(data_op)
-        self._store(data_op, result)
         duration = yield _CurrentNodeDuration()
-        metadata = data_op._skrub_impl.metadata.setdefault(self.mode, {})
-        metadata["eval_duration"] = duration
+        self._store(data_op, result, duration)
         for cb in self.callbacks:
             cb(data_op, result)
         return result
