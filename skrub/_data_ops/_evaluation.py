@@ -60,8 +60,8 @@ class _Computation:
     # >>> d['oops!'] = d
     # >>> skrub.as_data_op(d).skb.eval()
 
-    def __init__(self, target, generator):
-        self.target_id = id(target)
+    def __init__(self, target_id, generator):
+        self.target_id = target_id
         self.generator = generator
 
 
@@ -117,7 +117,7 @@ class _DataOpTraversal:
         stack = [data_op]
         last_result = None
 
-        # Nodes that are the target of a Computation currently on the stack.
+        # IDs of nodes that are the target of a _Computation currently on the stack.
         # Used to detect circular references.
         running = set()
 
@@ -125,19 +125,32 @@ class _DataOpTraversal:
         # evaluating its children)
         node_durations = defaultdict(float)
 
-        def push(handler):
+        def push_computation(handler):
+            "Replace the top of stack (tos) with a _Computation wrapping handler(tos)."
             top = pop()
+            top_id = id(top)
+            if top_id in running:
+                # If 2 computations targeting the same node are on the stack
+                # this node is a descendant of itself: we have a cycle in the
+                # computation graph. We raise an exception to avoid an infinite
+                # loop.
+                raise CircularReferenceError(
+                    "Skrub DataOps cannot contain circular references. "
+                    f"A cycle was found in this object: {top}"
+                )
             generator = handler(top)
-            stack.append(_Computation(top, generator))
-            running.add(id(top))
+            stack.append(_Computation(top_id, generator))
+            running.add(top_id)
 
         def pop():
+            "Pop an item off the stack."
             top = stack.pop()
             if isinstance(top, _Computation):
                 running.remove(top.target_id)
             return top
 
         def step():
+            "Send the last result into the generator at the top of the stack."
             nonlocal last_result
             top = stack[-1]
             try:
@@ -147,24 +160,14 @@ class _DataOpTraversal:
                 finally:
                     node_durations[top.target_id] += time.monotonic() - start
             except StopIteration as e:
-                # The generator returned, the returned value is in the
-                # `StopIteration`'s `value` attribute.
-                # See the python documentation (eg
-                # https://docs.python.org/3/reference/expressions.html#yield-expressions
-                # and PEPs linked within) for a refresher on generators
+                # The generator returned. The returned value is in the `value`
+                # attribute of the `StopIteration`. We store the result and
+                # discard the exhausted generator.
                 last_result = e.value
                 pop()
             else:
-                if id(new_top) in running:
-                    # If 2 computations targeting the same object are on
-                    # the stack this node is a descendant of itself: we
-                    # have a circular reference. As there is no use case
-                    # for handling such cases we raise an exception to
-                    # avoid an infinite loop.
-                    raise CircularReferenceError(
-                        "Skrub DataOps cannot contain circular references. "
-                        f"A circular reference was found in this object: {new_top}"
-                    )
+                # The generator yielded a new item to evaluate, we push it on
+                # the stack.
                 stack.append(new_top)
                 last_result = None
 
@@ -176,21 +179,21 @@ class _DataOpTraversal:
                 pop()
                 last_result = node_durations[stack[-1].target_id]
             elif isinstance(top, DataOp):
-                push(self.handle_data_op)
+                push_computation(self.handle_data_op)
             elif isinstance(top, _BUILTIN_MAP):
-                push(self.handle_mapping)
+                push_computation(self.handle_mapping)
             elif isinstance(top, _BUILTIN_SEQ):
-                push(self.handle_seq)
+                push_computation(self.handle_seq)
             elif isinstance(top, slice):
-                push(self.handle_slice)
+                push_computation(self.handle_slice)
             elif isinstance(top, _choosing.BaseChoice):
-                push(self.handle_choice)
+                push_computation(self.handle_choice)
             elif isinstance(top, _choosing.Match):
-                push(self.handle_choice_match)
+                push_computation(self.handle_choice_match)
             elif isinstance(top, BaseEstimator):
-                push(self.handle_estimator)
+                push_computation(self.handle_estimator)
             else:
-                push(self.handle_value)
+                push_computation(self.handle_value)
 
         return last_result
 
