@@ -17,6 +17,7 @@ from types import SimpleNamespace
 
 from sklearn.base import BaseEstimator
 from sklearn.base import clone as skl_clone
+from sklearn.frozen import FrozenEstimator
 from sklearn.utils import check_random_state
 
 from .._utils import short_repr
@@ -218,6 +219,8 @@ class _DataOpTraversal:
         return data_op
 
     def handle_estimator(self, estimator):
+        if isinstance(estimator, FrozenEstimator):
+            return skl_clone(estimator)
         params = yield estimator.get_params()
         estimator = skl_clone(estimator)
         estimator.set_params(**params)
