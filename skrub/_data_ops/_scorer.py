@@ -10,6 +10,7 @@ def _process_scores(scorer_info, scorer_output):
         prefix = scorer_info["name"] + "_"
     else:
         prefix = ""
+    scoring = scorer_info["scoring"]
     if isinstance(scoring, str):
         return [(f"{prefix}{scoring}", scorer_output)]
     if isinstance(scorer_output, dict):
@@ -42,7 +43,6 @@ class Scorer:
         for scorer_info in scorers:
             scorer = check_scoring(estimator, scorer_info["scoring"])
             kwargs = scorer_info["kwargs"] or {}
-            name = scorer_info["name"]
             scorer_output = scorer(estimator, X, y, **kwargs)
             all_scores.extend(_process_scores(scorer_info, scorer_output))
         rename = unique_renaming()
