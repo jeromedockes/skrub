@@ -2839,13 +2839,16 @@ class SkrubNamespace:
     @checked_data_op_constructor
     def score(self, scoring, kwargs=None, name=None):
         # TODO
-        # - add name
         # - check only 1 scorer
-        # - appending to scorer list
         # - Score repr?
-        return DataOp(
-            Score(self._data_op, [{"scoring": scoring, "kwargs": kwargs, "name": None}])
-        )
+        scorer_info = {"scoring": scoring, "kwargs": kwargs, "name": name}
+        impl = self._data_op._skrub_impl
+        if isinstance(impl, Score):
+            new = impl.__copy__()
+            new.scorers = [*new.scorers, scorer_info]
+        else:
+            new = Score(self._data_op, [scorer_info])
+        return DataOp(new)
 
     @checked_data_op_constructor
     def set_name(self, name):
