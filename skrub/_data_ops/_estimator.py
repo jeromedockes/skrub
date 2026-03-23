@@ -26,6 +26,7 @@ from ._evaluation import (
 )
 from ._inspection import describe_params
 from ._parallel_coord import DEFAULT_COLORSCALE, plot_parallel_coord
+from ._scorer import Scorer
 from ._subsampling import env_with_subsampling
 from ._utils import X_NAME, Y_NAME, _CloudPickle, attribute_error
 
@@ -766,6 +767,7 @@ def cross_validate(learner, environment, *, keep_subsampling=False, cv=None, **k
 
     environment = env_with_subsampling(learner.data_op, environment, keep_subsampling)
     kwargs = _rename_cv_param_learner_to_estimator(kwargs)
+    kwargs.setdefault("scoring", Scorer())
     X, y, splitter = _compute_cv_data(learner.data_op, environment, cv)
     result = model_selection.cross_validate(
         _to_Xy_pipeline(learner, environment),

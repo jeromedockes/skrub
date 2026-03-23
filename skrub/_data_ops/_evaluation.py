@@ -20,7 +20,7 @@ from sklearn.base import clone as skl_clone
 from sklearn.utils import check_random_state
 
 from .._utils import short_repr
-from . import _choosing
+from . import _choosing, _utils
 from ._data_ops import (
     Apply,
     DataOp,
@@ -657,21 +657,13 @@ def _choice_display_names(choices):
     When the choice is given an explicit `name` by the user that is used,
     otherwise a shorted repr + number suffix to make them unique.
     """
-    used = set()
+    rename = _utils.unique_renaming()
     names = {}
 
     def add(choice_ids):
         for c_id in choice_ids:
             stem = _choosing.get_display_name(choices[c_id])
-            if stem not in used:
-                used.add(stem)
-                names[c_id] = stem
-                continue
-            i = 1
-            while (numbered := f"{stem}_{i}") in used:
-                i += 1
-            used.add(numbered)
-            names[c_id] = numbered
+            names[c_id] = rename(stem)
         return names
 
     add(c_id for (c_id, c) in choices.items() if c.name is not None)

@@ -1984,3 +1984,14 @@ class SplitX(DataOpImpl):
 
     def __repr__(self):
         return "<X>"
+
+
+class Score(DataOpImpl):
+    _fields = ["pred", "scorers"]
+
+    def eval(self, *, mode, environment):
+        # TODO: actually compute the scores? at least in 'score' mode?
+        return (yield self.pred)
+
+    def __repr__(self):
+        return "<Score>"

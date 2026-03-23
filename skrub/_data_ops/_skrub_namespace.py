@@ -18,6 +18,7 @@ from ._data_ops import (
     FreezeAfterFit,
     IfElse,
     Match,
+    Score,
     SplitX,
     Var,
     check_data_op,
@@ -2834,6 +2835,17 @@ class SkrubNamespace:
     def is_y(self):
         """Whether this DataOp has been marked with :meth:`.skb.mark_as_y()`."""
         return self._data_op._skrub_impl.is_y
+
+    @checked_data_op_constructor
+    def score(self, scoring, kwargs=None, name=None):
+        # TODO
+        # - add name
+        # - check only 1 scorer
+        # - appending to scorer list
+        # - Score repr?
+        return DataOp(
+            Score(self._data_op, [{"scoring": scoring, "kwargs": kwargs, "name": None}])
+        )
 
     @checked_data_op_constructor
     def set_name(self, name):
