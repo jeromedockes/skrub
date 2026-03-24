@@ -2838,9 +2838,6 @@ class SkrubNamespace:
 
     @checked_data_op_constructor
     def score(self, scoring, kwargs=None, name=None):
-        # TODO
-        # - check only 1 scorer
-        # - Score repr?
         scorer_info = {"scoring": scoring, "kwargs": kwargs, "name": name}
         impl = self._data_op._skrub_impl
         if isinstance(impl, Score):
