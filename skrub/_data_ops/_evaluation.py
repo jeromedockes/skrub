@@ -24,6 +24,7 @@ from . import _choosing, _utils
 from ._data_ops import (
     Apply,
     DataOp,
+    Score,
     Value,
     Var,
 )
@@ -1130,6 +1131,7 @@ class _FindConflicts(_DataOpTraversal):
         self._names = {}
         self._x = {}
         self._y = {}
+        self._score_nodes = {}
 
     def handle_data_op(self, e):
         self._add(
@@ -1137,11 +1139,12 @@ class _FindConflicts(_DataOpTraversal):
             getattr(e._skrub_impl, "name", None),
             e._skrub_impl.is_X,
             e._skrub_impl.is_y,
+            isinstance(e._skrub_impl, Score),
         )
         yield from super().handle_data_op(e)
 
     def handle_choice(self, choice):
-        self._add(choice, getattr(choice, "name", None), False, False)
+        self._add(choice, getattr(choice, "name", None), False, False, False)
         yield from super().handle_choice(choice)
 
     def _conflict_error_message(self, conflict):
@@ -1159,6 +1162,13 @@ class _FindConflicts(_DataOpTraversal):
                 "2 different objects were marked as y:\n"
                 f"first object that used `.mark_as_y()`:\n{first}\n"
                 f"second object that used `.mark_as_y()`:\n{second}"
+            )
+        if conflict["reason"] == "is_score":
+            return (
+                "The DataOp can only contain one scoring node;\ngroup the "
+                ".skb.score() calls together with no other nodes in-between.\n"
+                f"first scoring node:\n{first}\n"
+                f"second scoring node:\n{second}\n"
             )
         assert conflict["reason"] == "name", conflict["reason"]
         name = conflict["name"]
@@ -1190,11 +1200,13 @@ class _FindConflicts(_DataOpTraversal):
         conflict["message"] = self._conflict_error_message(conflict)
         raise _Found(conflict)
 
-    def _add(self, obj, name, is_X, is_y):
+    def _add(self, obj, name, is_X, is_y, is_score):
         if is_X:
             self._add_to_dict(self._x, "X", obj, "is_X")
         if is_y:
             self._add_to_dict(self._y, "y", obj, "is_y")
+        if is_score:
+            self._add_to_dict(self._score_nodes, "score", obj, "is_score")
         self._add_to_dict(self._names, name, obj, "name")
 
 

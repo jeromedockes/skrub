@@ -1994,4 +1994,4 @@ class Score(DataOpImpl):
         return (yield self.pred)
 
     def __repr__(self):
-        return "<Score>"
+        return f"<Score {short_repr(self.pred)}>"
