@@ -1990,7 +1990,10 @@ class Score(DataOpImpl):
     _fields = ["pred", "scorers"]
 
     def eval(self, *, mode, environment):
-        # TODO: actually compute the scores? at least in 'score' mode?
+        # TODO:
+        #   - actually compute the scores? at least in 'score' mode?
+        #   - what does learner.score() return
+        #   - note: evaluation in score mode is only done by learner's score() method
         return (yield self.pred)
 
     def __repr__(self):

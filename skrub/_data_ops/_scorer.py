@@ -43,12 +43,13 @@ def _process_scores(scorer_info, scorer_output):
 
 class Scorer:
     def __call__(self, estimator, X, y):
-        # TODO
-        #   - scoring passed to cross_validate is added, or replaces?
         score_node = find_node(
             estimator.data_op,
             lambda o: isinstance(o, DataOp) and isinstance(o._skrub_impl, Score),
         )
+        if score_node is None:
+            scorer = check_scoring(estimator, scoring=None)
+            return scorer(estimator, X, y)
         env = estimator._get_env(X, y)
         scorers = evaluate(
             score_node._skrub_impl.scorers, mode="fit_transform", environment=env
