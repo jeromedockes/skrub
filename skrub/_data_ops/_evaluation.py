@@ -24,7 +24,7 @@ from . import _choosing, _utils
 from ._data_ops import (
     Apply,
     DataOp,
-    Score,
+    Scoring,
     Value,
     Var,
 )
@@ -1139,7 +1139,7 @@ class _FindConflicts(_DataOpTraversal):
             getattr(e._skrub_impl, "name", None),
             e._skrub_impl.is_X,
             e._skrub_impl.is_y,
-            isinstance(e._skrub_impl, Score),
+            isinstance(e._skrub_impl, Scoring),
         )
         yield from super().handle_data_op(e)
 
@@ -1166,7 +1166,7 @@ class _FindConflicts(_DataOpTraversal):
         if conflict["reason"] == "is_score":
             return (
                 "The DataOp can only contain one scoring node;\ngroup the "
-                ".skb.score() calls together with no other nodes in-between.\n"
+                ".skb.score_with() calls together with no other nodes in-between.\n"
                 f"first scoring node:\n{first}\n"
                 f"second scoring node:\n{second}\n"
             )

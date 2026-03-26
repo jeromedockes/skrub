@@ -1986,7 +1986,7 @@ class SplitX(DataOpImpl):
         return "<X>"
 
 
-class Score(DataOpImpl):
+class Scoring(DataOpImpl):
     _fields = ["pred", "scorers"]
 
     def eval(self, *, mode, environment):
@@ -1997,4 +1997,4 @@ class Score(DataOpImpl):
         return (yield self.pred)
 
     def __repr__(self):
-        return f"<Score {short_repr(self.pred)}>"
+        return f"<Scoring {short_repr(self.pred)}>"

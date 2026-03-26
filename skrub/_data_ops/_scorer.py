@@ -3,7 +3,7 @@ from functools import partial
 
 from sklearn.metrics import check_scoring
 
-from ._data_ops import DataOp, Score
+from ._data_ops import DataOp, Scoring
 from ._evaluation import evaluate, find_node
 from ._utils import unique_renaming
 
@@ -45,7 +45,7 @@ class Scorer:
     def __call__(self, estimator, X, y):
         score_node = find_node(
             estimator.data_op,
-            lambda o: isinstance(o, DataOp) and isinstance(o._skrub_impl, Score),
+            lambda o: isinstance(o, DataOp) and isinstance(o._skrub_impl, Scoring),
         )
         if score_node is None:
             scorer = check_scoring(estimator, scoring=None)

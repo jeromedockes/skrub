@@ -18,7 +18,7 @@ from ._data_ops import (
     FreezeAfterFit,
     IfElse,
     Match,
-    Score,
+    Scoring,
     SplitX,
     Var,
     check_data_op,
@@ -2837,14 +2837,14 @@ class SkrubNamespace:
         return self._data_op._skrub_impl.is_y
 
     @checked_data_op_constructor
-    def score(self, scoring, kwargs=None, name=None):
+    def score_with(self, scoring, kwargs=None, name=None):
         scorer_info = {"scoring": scoring, "kwargs": kwargs, "name": name}
         impl = self._data_op._skrub_impl
-        if isinstance(impl, Score):
+        if isinstance(impl, Scoring):
             new = impl.__copy__()
             new.scorers = [*new.scorers, scorer_info]
         else:
-            new = Score(self._data_op, [scorer_info])
+            new = Scoring(self._data_op, [scorer_info])
         return DataOp(new)
 
     @checked_data_op_constructor
