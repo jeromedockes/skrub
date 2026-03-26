@@ -2704,7 +2704,7 @@ class SkrubNamespace:
         >>> df = skrub.datasets.toy_products()
         >>> df
            description  price            seller     category
-        0        mouse     10   supermarket.com  electronics
+        0       screen    100   supermarket.com  electronics
         1       hammer     15  bestproducts.com        tools
         2     keyboard     20   supermarket.com  electronics
         3      usb key      9  bestproducts.com  electronics
@@ -2731,7 +2731,7 @@ class SkrubNamespace:
 
         >>> split["X_train"]
            description  price
-        0        mouse     10
+        0       screen    100
         2     keyboard     20
         5  screwdriver     12
 
