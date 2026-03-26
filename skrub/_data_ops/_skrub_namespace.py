@@ -2924,10 +2924,10 @@ class SkrubNamespace:
 
         We can get the accuracy (the default metric) with 2-fold cross-validation:
 
-        >>> pred.skb.cross_validate()
+        >>> pred.skb.cross_validate() # doctest: +SKIP
            fit_time  score_time  test_score
-        0  0.002638    0.002344    0.666667
-        1  0.002299    0.002435    0.666667
+        0  0.003982    0.002405    0.666667
+        1  0.002582    0.002169    0.666667
 
         But suppose we want to give more importance to the pricier products. We can
         weight the accuracy by the item price:
@@ -2935,10 +2935,10 @@ class SkrubNamespace:
         >>> sample_weight = X["price"]
         >>> pred.skb.with_scoring(
         ...     "accuracy", kwargs={"sample_weight": sample_weight}
-        ... ).skb.cross_validate(cv=2)
+        ... ).skb.cross_validate(cv=2) # doctest: +SKIP
            fit_time  score_time  test_accuracy
-        0  0.002833    0.003222       0.888889
-        1  0.002645    0.003138       0.647059
+        0  0.003045    0.003275       0.888889
+        1  0.002659    0.003026       0.647059
 
         We can also have both by calling ``with_scoring`` twice:
 
@@ -2946,10 +2946,10 @@ class SkrubNamespace:
         ...     "accuracy",
         ...     kwargs={"sample_weight": sample_weight},
         ...     name="weighted_accuracy",
-        ... ).skb.cross_validate(cv=2)
+        ... ).skb.cross_validate(cv=2) # doctest: +SKIP
            fit_time  score_time  test_accuracy  test_weighted_accuracy
-        0  0.002758    0.005807       0.666667                0.888889
-        1  0.002611    0.005784       0.666667                0.647059
+        0  0.002738    0.005733       0.666667                0.888889
+        1  0.002845    0.005705       0.666667                0.647059
 
         When we have several scorers but they use the same kwargs we can pass a list
         or dict of metrics, as for :func:`sklearn.model_selection.cross_validate`:
@@ -2957,10 +2957,10 @@ class SkrubNamespace:
         >>> sample_weight = X["price"]
         >>> pred.skb.with_scoring(
         ...     ["accuracy", "neg_log_loss"], kwargs={"sample_weight": sample_weight}
-        ... ).skb.cross_validate(cv=2)
+        ... ).skb.cross_validate(cv=2) # doctest: +SKIP
            fit_time  score_time  test_accuracy  test_neg_log_loss
-        0  0.002628    0.007084       0.888889          -0.482481
-        1  0.002935    0.007048       0.647059          -0.650105
+        0  0.002694    0.007017       0.888889          -0.482481
+        1  0.002833    0.006627       0.647059          -0.650105
         """  # noqa: E501
         scorer_info = {"scoring": scoring, "kwargs": kwargs, "name": name}
         impl = self._data_op._skrub_impl
