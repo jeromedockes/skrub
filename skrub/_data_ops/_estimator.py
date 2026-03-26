@@ -26,7 +26,7 @@ from ._evaluation import (
 )
 from ._inspection import describe_params
 from ._parallel_coord import DEFAULT_COLORSCALE, plot_parallel_coord
-from ._scorer import Scorer
+from ._scorer import score
 from ._subsampling import env_with_subsampling
 from ._utils import X_NAME, Y_NAME, _CloudPickle, attribute_error
 
@@ -168,6 +168,8 @@ class SkrubLearner(_DataOpWrapperMixin, BaseEstimator):
     def _eval_in_mode(self, mode, environment):
         if mode not in _FITTING_METHODS:
             check_is_fitted(self)
+        if mode == "score":
+            return self._score(environment)
         result = evaluate(self.data_op, mode, environment, clear=True)
         self._set_is_fitted(mode)
         return result
@@ -243,6 +245,12 @@ class SkrubLearner(_DataOpWrapperMixin, BaseEstimator):
             result["result"] = self
         self._set_is_fitted(mode)
         return result
+
+    def _score(self, environment):
+        estimator = self.__skrub_to_Xy_pipeline__(environment)
+        cv_data = _compute_X_y_and_cv(self.data_op, environment)
+        X, y = cv_data["X"], cv_data.get("y")
+        return score(estimator, X, y)
 
     def __getattr__(self, name):
         if name not in supported_modes(self.data_op):
@@ -767,7 +775,7 @@ def cross_validate(learner, environment, *, keep_subsampling=False, cv=None, **k
 
     environment = env_with_subsampling(learner.data_op, environment, keep_subsampling)
     kwargs = _rename_cv_param_learner_to_estimator(kwargs)
-    kwargs.setdefault("scoring", Scorer())
+    kwargs.setdefault("scoring", score)
     X, y, splitter = _compute_cv_data(learner.data_op, environment, cv)
     result = model_selection.cross_validate(
         _to_Xy_pipeline(learner, environment),

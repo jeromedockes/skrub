@@ -41,23 +41,22 @@ def _process_scores(scorer_info, scorer_output):
     return [(name, scorer_output)]
 
 
-class Scorer:
-    def __call__(self, estimator, X, y):
-        score_node = find_node(
-            estimator.data_op,
-            lambda o: isinstance(o, DataOp) and isinstance(o._skrub_impl, Scoring),
-        )
-        if score_node is None:
-            scorer = check_scoring(estimator, scoring=None)
-            return scorer(estimator, X, y)
-        env = estimator._get_env(X, y)
-        scorers = evaluate(
-            score_node._skrub_impl.scorers, mode="fit_transform", environment=env
-        )
-        all_scores = []
-        for scorer_info in scorers:
-            scorer = _prepare_scorer(estimator, scorer_info)
-            scorer_output = scorer(estimator, X, y)
-            all_scores.extend(_process_scores(scorer_info, scorer_output))
-        rename = unique_renaming()
-        return {rename(name): score for name, score in all_scores}
+def score(estimator, X, y):
+    score_node = find_node(
+        estimator.data_op,
+        lambda o: isinstance(o, DataOp) and isinstance(o._skrub_impl, Scoring),
+    )
+    if score_node is None:
+        scorer = check_scoring(estimator, scoring=None)
+        return scorer(estimator, X, y)
+    env = estimator._get_env(X, y)
+    scorers = evaluate(
+        score_node._skrub_impl.scorers, mode="fit_transform", environment=env
+    )
+    all_scores = []
+    for scorer_info in scorers:
+        scorer = _prepare_scorer(estimator, scorer_info)
+        scorer_output = scorer(estimator, X, y)
+        all_scores.extend(_process_scores(scorer_info, scorer_output))
+    rename = unique_renaming()
+    return {rename(name): score for name, score in all_scores}
