@@ -145,6 +145,13 @@ class _DataOpWrapperMixin(_CloudPickle):
             attribute_error(self, "classes_")
 
 
+def _find_scoring_node(data_op):
+    return find_node(
+        data_op,
+        lambda o: isinstance(o, DataOp) and isinstance(o._skrub_impl, Scoring),
+    )
+
+
 class SkrubLearner(_DataOpWrapperMixin, BaseEstimator):
     """Learner that evaluates a skrub DataOp.
 
@@ -249,6 +256,9 @@ class SkrubLearner(_DataOpWrapperMixin, BaseEstimator):
         return result
 
     def _score(self, environment):
+        score_node = _find_scoring_node(self.data_op)
+        if score_node is None:
+            return self._eval_in_mode("score", environment)
         estimator = self.__skrub_to_Xy_pipeline__(environment)
         cv_data = _compute_X_y_and_cv(self.data_op, environment)
         X, y = cv_data["X"], cv_data.get("y")
@@ -609,10 +619,7 @@ class _XyPipeline(_XyPipelineMixin, SkrubLearner):
         return [(name, scorer_output)]
 
     def _score(self, X, y=None):
-        score_node = find_node(
-            self.data_op,
-            lambda o: isinstance(o, DataOp) and isinstance(o._skrub_impl, Scoring),
-        )
+        score_node = _find_scoring_node(self.data_op)
         if score_node is None:
             return self._eval_in_mode("score", X, y)
         env = self._get_env(X, y)
