@@ -675,7 +675,7 @@ def _compute_X_y_and_cv(data_op, environment):
 class _Splitter:
     def __init__(self, splitter, split_kwargs):
         self.splitter = splitter
-        self.split_kwargs = split_kwargs
+        self.split_kwargs = split_kwargs or {}
 
     def split(self, X, y=None, groups=None):
         # If user passed groups they will be in split_kwargs, the groups param
