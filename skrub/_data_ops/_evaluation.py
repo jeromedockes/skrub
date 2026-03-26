@@ -1166,7 +1166,7 @@ class _FindConflicts(_DataOpTraversal):
         if conflict["reason"] == "is_score":
             return (
                 "The DataOp can only contain one scoring node;\ngroup the "
-                ".skb.score_with() calls together with no other nodes in-between.\n"
+                ".skb.with_scoring() calls together with no other nodes in-between.\n"
                 f"first scoring node:\n{first}\n"
                 f"second scoring node:\n{second}\n"
             )

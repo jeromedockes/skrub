@@ -2837,7 +2837,7 @@ class SkrubNamespace:
         return self._data_op._skrub_impl.is_y
 
     @checked_data_op_constructor
-    def score_with(self, scoring, kwargs=None, name=None):
+    def with_scoring(self, scoring, kwargs=None, name=None):
         scorer_info = {"scoring": scoring, "kwargs": kwargs, "name": name}
         impl = self._data_op._skrub_impl
         if isinstance(impl, Scoring):
