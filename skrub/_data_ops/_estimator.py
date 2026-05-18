@@ -185,12 +185,16 @@ class SkrubLearner(_DataOpWrapperMixin, BaseEstimator):
     after fitting it.
     """
 
-    def __init__(self, data_op):
+    def __init__(self, data_op, keep_subsampling=False):
         self.data_op = data_op
+        self.keep_subsampling = keep_subsampling
+
+    def _check_env(self, environment):
+        return env_with_subsampling(self.data_op, environment, self.keep_subsampling)
 
     def __skrub_to_Xy_pipeline__(self, environment):
         """Convert to a fully scikit-learn compatible pipeline (fit takes X, y)."""
-        new = _XyPipeline(self.data_op, _SharedDict(environment))
+        new = _XyPipeline(self.data_op, _SharedDict(environment), self.keep_subsampling)
         _copy_attr(self, new, ["_is_fitted"])
         return new
 
@@ -202,6 +206,7 @@ class SkrubLearner(_DataOpWrapperMixin, BaseEstimator):
         return getattr(self, "_is_fitted", False)
 
     def _eval_in_mode(self, mode, environment):
+        environment = self._check_env(environment)
         if mode not in _FITTING_METHODS:
             check_is_fitted(self)
         result = evaluate(self.data_op, mode, environment, clear=True)
@@ -266,6 +271,7 @@ class SkrubLearner(_DataOpWrapperMixin, BaseEstimator):
         >>> predict_results['result']  # doctest: +SKIP
         array([0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0])
         """
+        environment = self._check_env(environment)
         if mode == "score" and find_scoring_node(self.data_op) is not None:
             raise NotImplementedError(
                 "Creating the report for 'score' mode when .skb.with_scoring() "
@@ -286,6 +292,7 @@ class SkrubLearner(_DataOpWrapperMixin, BaseEstimator):
         return result
 
     def _score(self, environment):
+        environment = self._check_env(environment)
         score_node = find_scoring_node(self.data_op)
         if score_node is None:
             return self._eval_in_mode("score", environment)
@@ -557,7 +564,7 @@ class SkrubLearner(_DataOpWrapperMixin, BaseEstimator):
         if not isinstance(node, DataOp):
             # If the found node is a choice, wrap it in a DataOp
             node = as_data_op(node)
-        new = self.__class__(node)
+        new = self.__class__(node, keep_subsampling=self.keep_subsampling)
         _copy_attr(self, new, ["_is_fitted"])
         return new
 
@@ -595,7 +602,10 @@ class _XyPipelineMixin:
         xy_environment = {X_NAME: X}
         if y is not None:
             xy_environment[Y_NAME] = y
-        return {**self.environment, **xy_environment}
+        env = {**self.environment, **xy_environment}
+        if hasattr(self, "keep_subsampling"):
+            env = env_with_subsampling(self.data_op, env, self.keep_subsampling)
+        return env
 
 
 class _MultiMetricScorer:
@@ -625,12 +635,13 @@ class _XyPipeline(_XyPipelineMixin, SkrubLearner):
     scikit-learn's clone incurs no copy).
     """
 
-    def __init__(self, data_op, environment):
+    def __init__(self, data_op, environment, keep_subsampling):
         self.data_op = data_op
         self.environment = environment
+        self.keep_subsampling = keep_subsampling
 
     def __skrub_to_env_learner__(self):
-        new = SkrubLearner(self.data_op)
+        new = SkrubLearner(self.data_op, keep_subsampling=self.keep_subsampling)
         _copy_attr(self, new, ["_is_fitted"])
         return new
 
@@ -1160,19 +1171,27 @@ class ParamSearch(_BaseParamSearch):
     :meth:`~DataOp.skb.make_randomized_search()` on a DataOp.
     """
 
-    def __init__(self, data_op, search):
+    def __init__(self, data_op, search, keep_subsampling):
         self.data_op = data_op
         self.search = search
+        self.keep_subsampling = keep_subsampling
 
     def __skrub_to_Xy_pipeline__(self, environment):
-        new = _XyParamSearch(self.data_op, self.search, _SharedDict(environment))
+        new = _XyParamSearch(
+            self.data_op, self.search, _SharedDict(environment), self.keep_subsampling
+        )
         _copy_attr(self, new, _SEARCH_FITTED_ATTRIBUTES)
         return new
 
     def fit(self, environment):
+        environment = env_with_subsampling(
+            self.data_op, environment, self.keep_subsampling
+        )
         self.refit_ = self.search.refit
         search = clone(self.search)
-        search.estimator = _XyPipeline(self.data_op, _SharedDict(environment))
+        search.estimator = _XyPipeline(
+            self.data_op, _SharedDict(environment), self.keep_subsampling
+        )
         param_grid = search.estimator.get_param_grid()
         if hasattr(search, "param_grid"):
             search.param_grid = param_grid
@@ -1222,13 +1241,14 @@ class ParamSearch(_BaseParamSearch):
 class _XyParamSearch(_XyPipelineMixin, ParamSearch):
     # Similar to _XyPipeline but for ParamSearch. See _XyPipeline docstring.
 
-    def __init__(self, data_op, search, environment):
+    def __init__(self, data_op, search, environment, keep_subsampling):
         self.data_op = data_op
         self.search = search
         self.environment = environment
+        self.keep_subsampling = keep_subsampling
 
     def __skrub_to_env_learner__(self):
-        new = ParamSearch(self.data_op, self.search)
+        new = ParamSearch(self.data_op, self.search, self.keep_subsampling)
         _copy_attr(self, new, _SEARCH_FITTED_ATTRIBUTES)
         return new
 

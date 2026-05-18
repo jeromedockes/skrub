@@ -154,6 +154,7 @@ class OptunaParamSearch(_BaseParamSearch):
     def __init__(
         self,
         data_op,
+        keep_subsampling=False,
         n_iter=10,
         scoring=None,
         n_jobs=None,
@@ -171,6 +172,7 @@ class OptunaParamSearch(_BaseParamSearch):
         timeout=None,
     ):
         self.data_op = data_op
+        self.keep_subsampling = keep_subsampling
         self.n_iter = n_iter
         self.scoring = scoring
         self.n_jobs = n_jobs
@@ -188,7 +190,9 @@ class OptunaParamSearch(_BaseParamSearch):
 
     def __skrub_to_Xy_pipeline__(self, environment):
         new = _XyOptunaParamSearch(
-            **self.get_params(deep=False), environment=_SharedDict(environment)
+            **self.get_params(deep=False),
+            environment=_SharedDict(environment),
+            keep_subsampling=self.keep_subsampling,
         )
         _copy_attr(self, new, _OPTUNA_SEARCH_FITTED_ATTRIBUTES)
         return new
@@ -198,7 +202,9 @@ class OptunaParamSearch(_BaseParamSearch):
         import optuna.samplers
 
         self.scorer_ = _get_scorer(
-            self.data_op.skb.make_learner().__skrub_to_Xy_pipeline__(environment),
+            self.data_op.skb.make_learner(
+                keep_subsampling=self.keep_subsampling
+            ).__skrub_to_Xy_pipeline__(environment),
             self.scoring,
         )
         self.refit_ = self.refit
@@ -259,7 +265,9 @@ class OptunaParamSearch(_BaseParamSearch):
                 )
 
             def objective(trial):
-                learner = self.data_op.skb.make_learner(choose=trial)
+                learner = self.data_op.skb.make_learner(
+                    choose=trial, keep_subsampling=self.keep_subsampling
+                )
                 try:
                     cv_results = learner.data_op.skb.cross_validate(
                         environment,
@@ -268,6 +276,7 @@ class OptunaParamSearch(_BaseParamSearch):
                         return_train_score=self.return_train_score,
                         verbose=self.verbose,
                         scoring=self.scoring,
+                        keep_subsampling=self.keep_subsampling,
                     )
                 except Exception:
                     # Even with error_score != 'raise', cross_validate will
@@ -345,7 +354,9 @@ class OptunaParamSearch(_BaseParamSearch):
             self.best_score_ = self.study_.best_value
             if not self.refit:
                 return self
-            best_learner = self.data_op.skb.make_learner(choose=self.study_.best_trial)
+            best_learner = self.data_op.skb.make_learner(
+                choose=self.study_.best_trial, keep_subsampling=self.keep_subsampling
+            )
             best_learner.fit(environment)
             self.best_learner_ = best_learner
         return self
@@ -355,6 +366,7 @@ class _XyOptunaParamSearch(_XyPipelineMixin, OptunaParamSearch):
     def __init__(
         self,
         data_op,
+        keep_subsampling,
         n_iter,
         scoring,
         n_jobs,
@@ -372,6 +384,7 @@ class _XyOptunaParamSearch(_XyPipelineMixin, OptunaParamSearch):
         environment,
     ):
         self.data_op = data_op
+        self.keep_subsampling = keep_subsampling
         self.n_iter = n_iter
         self.scoring = scoring
         self.n_jobs = n_jobs
