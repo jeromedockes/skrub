@@ -34,6 +34,7 @@ import itertools
 import operator
 import pathlib
 import re
+import sys
 import textwrap
 import traceback
 import types
@@ -700,6 +701,25 @@ class DataOp:
         )
 
     def __iter__(self):
+        def unpack_arity(depth=1):
+            frame = sys._getframe(depth + 1)
+            code, lasti = frame.f_code, frame.f_lasti
+            for instr in dis.get_instructions(code):
+                # print(instr.opname)
+                if instr.offset != lasti:
+                    continue
+                if instr.opname == "UNPACK_SEQUENCE":
+                    return instr.arg, 0, False  # exact arity
+                if instr.opname == "UNPACK_EX":
+                    return instr.arg & 0xFF, instr.arg >> 8, True  # before, after, star
+                return None  # not an unpack at all
+            return None
+
+        req = unpack_arity()
+        if req is not None and req[-1] is False:
+            t = unpack(self, req[0])
+            return (t[i] for i in range(req[0]))
+
         raise TypeError(
             "This object is a DataOp that will be evaluated later, "
             "when your learner runs. So it is not possible to eagerly "
@@ -2147,3 +2167,25 @@ class Scoring(DataOpImpl):
     @staticmethod
     def __skrub_preview_heading__():
         return "Result (preview of the learner's output, not the scores)"
+
+
+class AsTuple(DataOpImpl):
+    _fields = ["iterable", "expected_len"]
+
+    def compute(self, e, mode, environment):
+        t = tuple(e.iterable)
+        expected, got = e.expected_len, len(t)
+        if expected != got:
+            msg = "few" if got < expected else "many"
+            raise ValueError(
+                f"Too {msg} values to unpack (expected {expected}, got {got})"
+            )
+        return t
+
+    def __repr__(self):
+        return f"<AsTuple {short_repr(self.iterable)}>"
+
+
+@checked_data_op_constructor
+def unpack(iterable, expected_len):
+    return DataOp(AsTuple(iterable, expected_len))
