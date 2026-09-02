@@ -5,14 +5,10 @@ They are in their own module so the cache is less likely to be invalidated due
 to the line number of the function definition changing.
 """
 
-import joblib
 
-
-def _call_fitting_method(estimator, method_name, args, kwargs):
-    # we could also just generate a str(uuid.uuid4()) 🤔
-    estimator_id = joblib.hash((estimator, method_name, args, kwargs))
+def _call_fitting_method(estimator, method_name, args, kwargs, estimator_id):
     result = getattr(estimator, method_name)(*args, **kwargs)
-    return estimator, result, estimator_id
+    return estimator, result
 
 
 def _call_non_fitting_method(estimator, method_name, args, kwargs, estimator_id):

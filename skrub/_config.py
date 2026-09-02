@@ -5,7 +5,6 @@ import warnings
 from contextlib import contextmanager
 from pathlib import Path
 
-import joblib
 import numpy as np
 
 
@@ -94,7 +93,6 @@ _global_config = {
     "cardinality_threshold": int(os.environ.get("SKB_CARDINALITY_THRESHOLD", 40)),
     "data_dir": _get_default_data_dir(),
     "cache_dir": _get_default_cache_dir(),
-    "memory": joblib.Memory(_get_default_cache_dir(), verbose=0),
     "eager_data_ops": _parse_env_bool("SKB_EAGER_DATA_OPS", True),
     "data_ops_open_graph_dropdown": _parse_env_bool(
         "SKB_DATA_OPS_OPEN_GRAPH_DROPDOWN", False
@@ -152,7 +150,6 @@ def set_config(
     cardinality_threshold=None,
     data_dir=None,
     cache_dir=None,
-    memory=None,
     eager_data_ops=None,
     data_ops_open_graph_dropdown=None,
 ):
@@ -423,7 +420,6 @@ def config_context(
     cardinality_threshold=None,
     data_dir=None,
     cache_dir=None,
-    memory=None,
     eager_data_ops=None,
     data_ops_open_graph_dropdown=None,
 ):

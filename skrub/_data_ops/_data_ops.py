@@ -42,6 +42,7 @@ import uuid
 import warnings
 from collections.abc import Iterable
 
+import joblib
 import numpy as np
 from sklearn.base import BaseEstimator
 
@@ -1413,15 +1414,25 @@ def check_subsampled_X_y_shape(X_op, y_op, X_value, y_value, mode, environment, 
     )
 
 
+def _get_memory():
+    cache_dir = _config.get_config()["cache_dir"]
+    if cache_dir is None:
+        return None
+    return joblib.Memory(cache_dir, verbose=0)
+
+
 def _call_fitting_method(estimator, method_name, args, kwargs):
-    memory = _config.get_config()["memory"]
+    memory = _get_memory()
     if memory is None:
         result = getattr(estimator, method_name)(*args, **kwargs)
         return estimator, result, None
     try:
-        return memory.cache(_cached_helpers._call_fitting_method)(
-            estimator, method_name, args, kwargs
-        )
+        estimator_id = joblib.hash((estimator, method_name, args, kwargs))
+        estimator, result = memory.cache(
+            _cached_helpers._call_fitting_method,
+            ignore=["estimator", "method_name", "args", "kwargs"],
+        )(estimator, method_name, args, kwargs, estimator_id)
+        return estimator, result, estimator_id
     except pickle.PicklingError:
         pass
     # Fall back to non-cached call if arguments cannot be serialized
@@ -1430,7 +1441,7 @@ def _call_fitting_method(estimator, method_name, args, kwargs):
 
 
 def _call_non_fitting_method(estimator, method_name, args, kwargs, estimator_id):
-    memory = _config.get_config()["memory"]
+    memory = _get_memory()
     if memory is None or estimator_id is None:
         return getattr(estimator, method_name)(*args, **kwargs)
     try:
