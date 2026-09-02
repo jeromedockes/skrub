@@ -107,7 +107,7 @@ scikit-learn's :func:`sklearn.model_selection.train_test_split`).
 
 >>> split = pred.skb.train_test_split(shuffle=False)
 >>> split.keys()
-dict_keys(['train', 'test', 'X_train', 'X_test', 'y_train', 'y_test'])
+dict_keys(['X_train', 'X_test', 'y_train', 'y_test', 'train', 'test', 'X', 'y'])
 
 ``train`` and ``test`` are the full dictionaries corresponding to the training
 and testing data. The corresponding ``X`` and ``y`` are the values, in those
@@ -154,8 +154,8 @@ be passed to the splitter.
 
 >>> df = skrub.datasets.toy_products()
 >>> df
-    description  price            seller     category
-0        mouse     10   supermarket.com  electronics
+   description  price            seller     category
+0       screen    100   supermarket.com  electronics
 1       hammer     15  bestproducts.com        tools
 2     keyboard     20   supermarket.com  electronics
 3      usb key      9  bestproducts.com  electronics
@@ -181,15 +181,150 @@ cross-validation we must group products by seller. We do it with
 The train set only contains data from the "supermarket.com" seller.
 
 >>> split["X_train"]
-    description  price
-0        mouse     10
-2     keyboard     20
-5  screwdriver     12
-
-The test set only contains data from the "bestproducts.com" seller.
-
->>> split["X_test"]
   description  price
 1      hammer     15
 3     usb key      9
 4     charger     13
+
+The test set only contains data from the "bestproducts.com" seller.
+
+>>> split["X_test"]
+   description  price
+0       screen    100
+2     keyboard     20
+5  screwdriver     12
+
+Passing additional arguments to the scorer
+==========================================
+
+Sometimes we have additional information to pass to the scorer such as sample
+weights, group information etc.
+
+We can control how scoring is performed by using
+:meth:`DataOp.skb.with_scoring`. It has a ``scoring`` parameter, which can be
+anything scikit-learn's :func:`~sklearn.model_selection.cross_validate` accepts
+for ``scoring`` such as a metric name, callable scorer, or dict mapping metric
+names to scorers (see the reference documentation of
+:meth:`DataOp.skb.with_scoring` for details).
+
+It also accepts a ``kwargs`` argument, which are passed to the scorer when
+evaluating the learner.
+
+Importantly, the ``scoring`` and ``kwargs`` can be DataOps, which will be
+computed when scoring the learner -- so for example, sample weights can be
+computed dynamically.
+
+Using the same toy dataset as above, suppose we want to give more weight to more
+expensive products:
+
+>>> X = data[["description", "price"]].skb.mark_as_X(cv=2)
+>>> y = data["category"].skb.mark_as_y()
+>>> pred = X.skb.apply(DummyClassifier(), y=y)
+
+The default score is the (unweighted) accuracy:
+
+>>> pred.skb.cross_validate() # doctest: +SKIP
+   fit_time  score_time  test_score
+0  0.003982    0.002405    0.666667
+1  0.002582    0.002169    0.666667
+
+We set the scoring to provide the sample weights:
+
+>>> sample_weight = X["price"]
+>>> pred.skb.with_scoring(
+...     "accuracy", kwargs={"sample_weight": sample_weight}
+... ).skb.cross_validate() # doctest: +SKIP
+   fit_time  score_time  test_accuracy
+0  0.003045    0.003275       0.888889
+1  0.002659    0.003026       0.647059
+
+Besides passing extra arguments, :meth:`DataOp.skb.with_scoring` can also be
+useful to control what should be used as the default scoring metric for our
+learner, just as the ``cv`` parameter of :meth:`DataOp.skb.mark_as_X` defines
+the default cross-validation splitting strategy.
+
+>>> split = pred.skb.train_test_split()
+>>> learner = pred.skb.with_scoring('neg_log_loss').skb.make_learner()
+>>> learner.fit(split['train'])
+SkrubLearner(data_op=<Scoring <Apply DummyClassifier> (1 scorers)>
+    This DataOp will be scored with:
+      - 'neg_log_loss'
+    Use .skb.cross_validate(…) or .skb.make_learner(…).score(…) to compute scores.)
+>>> learner.score(split['test']) # doctest: +SKIP
+-0.6365141682948128
+
+Note that the score above is negative: it is the negative log loss we passed to
+``with_scoring``, and not the default score (accuracy, which would be positive).
+
+If we also want to recover the default score that would be returned by the
+applied estimator's ``score()`` method (what we would get if we did not use
+:meth:`DataOp.skb.with_scoring`), we can pass ``None`` as the scorer, and the
+default corresponding key in the result is ``"score"`` (exactly like in
+:func:`~sklearn.model_selection.cross_validate`):
+
+>>> (
+...     pred.skb.with_scoring(None)
+...     .skb.with_scoring('accuracy')
+...     .skb.with_scoring('roc_auc')
+...     .skb.make_learner()
+...     .fit(split["train"])
+...     .score(split["test"])
+... )
+{'score': 0.6666666666666666, 'accuracy': 0.6666666666666666, 'roc_auc': 0.5}
+
+:meth:`DataOp.skb.with_scoring` only changes how scoring is performed
+(the outputs of :meth:`DataOp.skb.cross_validate`,
+:meth:`DataOp.skb.make_randomized_search`, :class:`SkrubLearner.score <SkrubLearner>` etc.),
+**not** the actual outputs of the learner (it does *not* affect the outputs of
+:meth:`DataOp.skb.eval`, :class:`SkrubLearner.predict <SkrubLearner>`, etc.)
+
+This method can be called several times to add scorers that take different
+kwargs. See the reference documentation for details.
+
+Avoiding computing predictions multiple times
+=============================================
+
+This section gives a few tips to avoid recomputing predictions, which is
+particularly important for pipelines for which inference is expensive, such as
+those using the :class:`TextEncoder` or Tabular Foundation Models such as
+`TabICL <https://tabicl.readthedocs.io/en/latest/>`_.
+
+When :meth:`DataOp.skb.with_scoring` is used, predictions are cached during
+scoring so that if multiple scorers call the same function (e.g. ``predict()``
+or ``predict_proba()``) the computation runs only once. Moreover, if we also
+need the predictions in addition to the scores (for example to create plots,
+study calibration, etc.) we can pass ``return_predictions=True`` to the
+learner's ``score()`` method.
+
+Instead of doing the following, which computes the predictions twice:
+
+>>> scores = learner.score(split['test'])
+>>> predictions = learner.predict(split['test']) # used for plotting etc.
+
+We can write:
+
+>>> scores, predictions = learner.score(split['test'], return_predictions=True)
+>>> scores  # doctest: +SKIP
+{'neg_log_loss': -0.6365141682948128}
+>>> predictions
+{'predict_proba': array([[0.66666667, 0.33333333],
+       [0.66666667, 0.33333333],
+       [0.66666667, 0.33333333]])}
+
+The returned dictionary contains any predictions of the pipeline that have been
+computed as part of scoring. When :meth:`DataOp.skb.with_scoring` has not been
+used, it will always be empty.
+
+If we happen to already have the predictions for the data we are scoring on, but
+would like to use the learner's ``score`` method to get the scores, we can
+inject the precomputed predictions in the input environment, under the special
+key ``"_skrub_predictions"``:
+
+>>> predict_proba = learner.predict_proba(split['test'])
+>>> learner.score(split['test'] | {'_skrub_predictions': {'predict_proba': predict_proba}})
+{'neg_log_loss': -0.63...}
+
+With the above, ``predict()`` is not called during scoring. As for
+``return_predictions``, this only applies to scorers added with
+:meth:`DataOp.skb.with_scoring`. If no scorer has been configured
+``'_skrub_predictions'`` will be ignored.

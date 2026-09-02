@@ -6,12 +6,13 @@ import traceback
 import warnings
 from pathlib import Path
 
-from joblib.externals import cloudpickle
+import cloudpickle
 
 FITTED_PREDICTOR_METHODS = ("predict", "predict_proba", "decision_function", "score")
 FITTED_ESTIMATOR_METHODS = FITTED_PREDICTOR_METHODS + ("transform",)
 X_NAME = "_skrub_X"
 Y_NAME = "_skrub_y"
+IS_PREVIEW_DATA_ENV_NAME = "_skrub_is_preview_data_env"
 
 
 class Sentinels(enum.Enum):
@@ -88,3 +89,81 @@ def prune_directory(path: str):
                     f"Could not delete {dir_path}:\n"
                     + "".join(format_exception_only(e))
                 )
+
+
+def unique_renaming():
+    """Factory of unique names
+
+    The returned function is called with a string and returns a string. If the
+    input was seen before, the output will have a number appended so that all
+    outputs are unique. This is best understood with an example (see below).
+
+    Examples
+    --------
+    >>> from skrub._data_ops._utils import unique_renaming
+    >>> rename = unique_renaming()
+    >>> rename('a')
+    'a'
+    >>> rename('b')
+    'b'
+    >>> rename('a')
+    'a_1'
+    >>> rename('a')
+    'a_2'
+    >>> rename('c')
+    'c'
+    """
+    used = set()
+
+    def rename(name):
+        if name not in used:
+            used.add(name)
+            return name
+        i = 1
+        while (numbered := f"{name}_{i}") in used:
+            i += 1
+        used.add(numbered)
+        return numbered
+
+    return rename
+
+
+def graphviz_error_message(html=False):
+    if html:
+        return """\
+To display the DataOp graph, please install Pydot and Graphviz
+and make sure the dot command is in your <code>$PATH</code>.<br/>
+You may also need to run <code>dot -c</code> in bash or powershell
+to rebuild the plugin cache of Graphviz.<br/>
+Graphviz must be installed using your system's
+package manager rather than pip.<br/>
+<a href="https://pypi.org/project/pydot/">Pydot documentation</a><br/>
+<a href="https://graphviz.org/download/">Graphviz installation instructions</a><br/>
+"""
+    else:
+        return """\
+To display the DataOp graph,
+please install Pydot and Graphviz and make sure the 'dot' command is in your $PATH.
+You may also need to run 'dot -c' in bash or powershell
+to rebuild the plugin cache of Graphviz.
+Graphviz must be installed using your system's package manager rather than pip.
+https://pypi.org/project/pydot/
+https://graphviz.org/download/"""
+
+
+def has_graphviz():
+    try:
+        import pydot
+
+        g = pydot.Dot()
+        g.add_node(pydot.Node("node 0"))
+        g.create_svg()
+        return True
+    except Exception:
+        return False
+
+
+def check_graphviz():
+    if has_graphviz():
+        return
+    raise RuntimeError(graphviz_error_message())
