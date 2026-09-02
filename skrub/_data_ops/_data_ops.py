@@ -33,7 +33,6 @@ import inspect
 import itertools
 import operator
 import pathlib
-import pickle
 import re
 import textwrap
 import traceback
@@ -42,7 +41,6 @@ import uuid
 import warnings
 from collections.abc import Iterable
 
-import joblib
 import numpy as np
 from sklearn.base import BaseEstimator
 
@@ -54,7 +52,7 @@ from .._check_input import cast_column_names_to_strings
 from .._reporting._utils import strip_xml_declaration
 from .._utils import PassThrough, set_module, short_repr
 from .._wrap_transformer import wrap_transformer
-from . import _cached_helpers, _utils
+from . import _caching, _utils
 from ._choosing import get_chosen_or_default
 from ._utils import FITTED_PREDICTOR_METHODS, NULL, attribute_error
 
@@ -1414,44 +1412,7 @@ def check_subsampled_X_y_shape(X_op, y_op, X_value, y_value, mode, environment, 
     )
 
 
-def _get_memory():
-    cache_dir = _config.get_config()["cache_dir"]
-    if cache_dir is None:
-        return None
-    return joblib.Memory(cache_dir, verbose=0)
-
-
-def _call_fitting_method(estimator, method_name, args, kwargs):
-    memory = _get_memory()
-    if memory is None:
-        result = getattr(estimator, method_name)(*args, **kwargs)
-        return estimator, result, None
-    try:
-        estimator_id = joblib.hash((estimator, method_name, args, kwargs))
-        estimator, result = memory.cache(
-            _cached_helpers._call_fitting_method,
-            ignore=["estimator", "method_name", "args", "kwargs"],
-        )(estimator, method_name, args, kwargs, estimator_id)
-        return estimator, result, estimator_id
-    except pickle.PicklingError:
-        pass
-    # Fall back to non-cached call if arguments cannot be serialized
-    result = getattr(estimator, method_name)(*args, **kwargs)
-    return estimator, result, None
-
-
-def _call_non_fitting_method(estimator, method_name, args, kwargs, estimator_id):
-    memory = _get_memory()
-    if memory is None or estimator_id is None:
-        return getattr(estimator, method_name)(*args, **kwargs)
-    try:
-        return memory.cache(
-            _cached_helpers._call_non_fitting_method, ignore=["estimator"]
-        )(estimator, method_name, args, kwargs, estimator_id)
-    except pickle.PicklingError:
-        pass
-    # Fall back to non-cached call if arguments cannot be serialized
-    return getattr(estimator, method_name)(*args, **kwargs)
+_MEMORY = _caching.Memory()
 
 
 class Apply(DataOpImpl):
@@ -1547,11 +1508,11 @@ class Apply(DataOpImpl):
             # `.transform()` with `.predict()`
             if method_name == "fit_transform":
                 fit_kwargs = yield from self._eval_kwargs("fit")
-                self.estimator_, _, self.estimator_id_ = _call_fitting_method(
+                self.estimator_, _, self.estimator_id_ = _MEMORY.call_fitting_method(
                     self.estimator_, "fit", (X, y), fit_kwargs
                 )
             predict_kwargs = yield from self._eval_kwargs("predict")
-            pred = _call_non_fitting_method(
+            pred = _MEMORY.call_non_fitting_method(
                 self.estimator_, "predict", (X,), predict_kwargs, self.estimator_id_
             )
             # In `(fit_)transform` mode only, format the predictions as a
@@ -1566,11 +1527,11 @@ class Apply(DataOpImpl):
             args = (X,)
         kwargs = yield from self._eval_kwargs(method_name)
         if "fit" in method_name:
-            self.estimator_, result, self.estimator_id_ = _call_fitting_method(
+            self.estimator_, result, self.estimator_id_ = _MEMORY.call_fitting_method(
                 self.estimator_, method_name, args, kwargs
             )
             return result
-        return _call_non_fitting_method(
+        return _MEMORY.call_non_fitting_method(
             self.estimator_, method_name, args, kwargs, self.estimator_id_
         )
 
