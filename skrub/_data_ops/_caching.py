@@ -3,6 +3,7 @@ Helper to cache estimator functions according to the config.
 """
 
 import pickle
+import types
 
 import joblib
 
@@ -19,6 +20,24 @@ def _call_fitting_method(estimator, method_name, args, kwargs, estimator_id):
 
 def _call_non_fitting_method(estimator, method_name, args, kwargs, estimator_id):
     return getattr(estimator, method_name)(*args, **kwargs)
+
+
+def _call_deferred_func(func, args, kwargs, globals, closure, defaults, kwdefaults):
+    if globals or closure or defaults:
+        # The deferred function has skrub DataOps (that need to be
+        # evaluated) in its global variables, free variables or default
+        # arguments. In this case after those are evaluated, we recompile a
+        # new function in which the DataOps have been replaced by their
+        # computed value. More details in the docstring of
+        # `skrub.deferred`.
+        func = types.FunctionType(
+            func.__code__,
+            globals={**func.__globals__, **globals},
+            argdefs=defaults,
+            closure=tuple(types.CellType(c) for c in closure),
+        )
+    kwargs = (kwdefaults or {}) | kwargs
+    return func(*args, **kwargs)
 
 
 class Memory:
@@ -51,6 +70,18 @@ class Memory:
         result = self.memory.cache(func, ignore=ignore)
         self.cached_func[key] = result
         return result
+
+    def call_deferred_func(
+        self, func, args, kwargs, globals, closure, defaults, kwdefaults
+    ):
+        all_args = (func, args, kwargs, globals, closure, defaults, kwdefaults)
+        if not self.has_memory():
+            return _call_deferred_func(*all_args)
+        try:
+            return self.cache(_call_deferred_func)(*all_args)
+        except pickle.PicklingError:
+            pass
+        return _call_deferred_func(*all_args)
 
     def call_fitting_method(self, estimator, method_name, args, kwargs):
         if not self.has_memory():

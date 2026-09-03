@@ -145,6 +145,9 @@ _UNARY_OPS = [
 ]
 
 
+_MEMORY = _caching.Memory()
+
+
 class UninitializedVariable(KeyError):
     """
     Evaluating a DataOp and a value has not been provided for one of the variables.
@@ -1412,9 +1415,6 @@ def check_subsampled_X_y_shape(X_op, y_op, X_value, y_value, mode, environment, 
     )
 
 
-_MEMORY = _caching.Memory()
-
-
 class Apply(DataOpImpl):
     """.skb.apply() nodes."""
 
@@ -1688,23 +1688,9 @@ class Call(DataOpImpl):
     ]
 
     def compute(self, e, mode, environment):
-        func = e.func
-        if e.globals or e.closure or e.defaults:
-            # The deferred function has skrub DataOps (that need to be
-            # evaluated) in its global variables, free variables or default
-            # arguments. In this case after those are evaluated, we recompile a
-            # new function in which the DataOps have been replaced by their
-            # computed value. More details in the docstring of
-            # `skrub.deferred`.
-            func = types.FunctionType(
-                func.__code__,
-                globals={**func.__globals__, **e.globals},
-                argdefs=e.defaults,
-                closure=tuple(types.CellType(c) for c in e.closure),
-            )
-
-        kwargs = (e.kwdefaults or {}) | e.kwargs
-        return func(*e.args, **kwargs)
+        return _MEMORY.call_deferred_func(
+            e.func, e.args, e.kwargs, e.globals, e.closure, e.defaults, e.kwdefaults
+        )
 
     def get_func_name(self):
         if not hasattr(self.func, "_skrub_impl"):
