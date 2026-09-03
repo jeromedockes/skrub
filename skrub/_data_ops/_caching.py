@@ -72,10 +72,10 @@ class Memory:
         return result
 
     def call_deferred_func(
-        self, func, args, kwargs, globals, closure, defaults, kwdefaults
+        self, func, args, kwargs, globals, closure, defaults, kwdefaults, *, use_cache
     ):
         all_args = (func, args, kwargs, globals, closure, defaults, kwdefaults)
-        if not self.has_memory():
+        if not use_cache or not self.has_memory():
             return _call_deferred_func(*all_args)
         try:
             return self.cache(_call_deferred_func)(*all_args)
@@ -83,8 +83,8 @@ class Memory:
             pass
         return _call_deferred_func(*all_args)
 
-    def call_fitting_method(self, estimator, method_name, args, kwargs):
-        if not self.has_memory():
+    def call_fitting_method(self, estimator, method_name, args, kwargs, *, use_cache):
+        if not use_cache or not self.has_memory():
             result = getattr(estimator, method_name)(*args, **kwargs)
             return estimator, result, None
         try:
@@ -101,9 +101,9 @@ class Memory:
         return estimator, result, None
 
     def call_non_fitting_method(
-        self, estimator, method_name, args, kwargs, estimator_id
+        self, estimator, method_name, args, kwargs, estimator_id, *, use_cache
     ):
-        if not self.has_memory() or estimator_id is None:
+        if not use_cache or not self.has_memory() or estimator_id is None:
             return getattr(estimator, method_name)(*args, **kwargs)
         try:
             return self.cache(_call_non_fitting_method, ignore=("estimator",))(

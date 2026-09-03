@@ -1429,6 +1429,7 @@ class Apply(DataOpImpl):
         "allow_reject",
         "unsupervised",
         "kwargs",
+        "use_cache",
     ]
 
     # We define `eval()` rather than `compute` because some children may not
@@ -1509,11 +1510,16 @@ class Apply(DataOpImpl):
             if method_name == "fit_transform":
                 fit_kwargs = yield from self._eval_kwargs("fit")
                 self.estimator_, _, self.estimator_id_ = _MEMORY.call_fitting_method(
-                    self.estimator_, "fit", (X, y), fit_kwargs
+                    self.estimator_, "fit", (X, y), fit_kwargs, use_cache=self.use_cache
                 )
             predict_kwargs = yield from self._eval_kwargs("predict")
             pred = _MEMORY.call_non_fitting_method(
-                self.estimator_, "predict", (X,), predict_kwargs, self.estimator_id_
+                self.estimator_,
+                "predict",
+                (X,),
+                predict_kwargs,
+                self.estimator_id_,
+                use_cache=self.use_cache,
             )
             # In `(fit_)transform` mode only, format the predictions as a
             # dataframe or column if y was one during `fit()`
@@ -1528,11 +1534,16 @@ class Apply(DataOpImpl):
         kwargs = yield from self._eval_kwargs(method_name)
         if "fit" in method_name:
             self.estimator_, result, self.estimator_id_ = _MEMORY.call_fitting_method(
-                self.estimator_, method_name, args, kwargs
+                self.estimator_, method_name, args, kwargs, use_cache=self.use_cache
             )
             return result
         return _MEMORY.call_non_fitting_method(
-            self.estimator_, method_name, args, kwargs, self.estimator_id_
+            self.estimator_,
+            method_name,
+            args,
+            kwargs,
+            self.estimator_id_,
+            use_cache=self.use_cache,
         )
 
     def _store_y_format(self, y):
@@ -1685,11 +1696,19 @@ class Call(DataOpImpl):
         "closure",
         "defaults",
         "kwdefaults",
+        "use_cache",
     ]
 
     def compute(self, e, mode, environment):
         return _MEMORY.call_deferred_func(
-            e.func, e.args, e.kwargs, e.globals, e.closure, e.defaults, e.kwdefaults
+            e.func,
+            e.args,
+            e.kwargs,
+            e.globals,
+            e.closure,
+            e.defaults,
+            e.kwdefaults,
+            use_cache=e.use_cache,
         )
 
     def get_func_name(self):
@@ -1752,7 +1771,7 @@ class CallMethod(DataOpImpl):
         return f".{_get_preview(self.method_name)}()"
 
 
-def deferred(func):
+def deferred(func=None, *, use_cache=False):
     """Wrap function calls in a DataOp :class:`DataOp`.
 
     When this decorator is applied, the resulting function returns DataOps.
@@ -1890,6 +1909,8 @@ def deferred(func):
            [-0.87,  0.5 ],
            [-0.  ,  1.  ]])
     """  # noqa : E501
+    if func is None:
+        return functools.partial(deferred, use_cache=use_cache)
     from ._evaluation import needs_eval
 
     if isinstance(func, DataOp) or getattr(func, "_skrub_is_deferred", False):
@@ -1908,6 +1929,7 @@ def deferred(func):
                 closure=(),
                 defaults=(),
                 kwdefaults={},
+                use_cache=use_cache,
             )
         )
 
@@ -1955,6 +1977,7 @@ def deferred(func):
                 closure=closure,
                 defaults=func.__defaults__,
                 kwdefaults=func.__kwdefaults__,
+                use_cache=use_cache,
             )
         )
 
