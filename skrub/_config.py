@@ -92,7 +92,7 @@ _global_config = {
     "float_precision": int(os.environ.get("SKB_FLOAT_PRECISION", 3)),
     "cardinality_threshold": int(os.environ.get("SKB_CARDINALITY_THRESHOLD", 40)),
     "data_dir": _get_default_data_dir(),
-    "cache_dir": _get_default_cache_dir(),
+    "cache_dir": None,
     "eager_data_ops": _parse_env_bool("SKB_EAGER_DATA_OPS", True),
     "data_ops_open_graph_dropdown": _parse_env_bool(
         "SKB_DATA_OPS_OPEN_GRAPH_DROPDOWN", False
@@ -135,6 +135,14 @@ def get_config():
     return _get_threadlocal_config().copy()
 
 
+class Unchanged:
+    def __repr__(self):
+        return "unchanged"
+
+
+UNCHANGED = Unchanged()
+
+
 def set_config(
     use_table_report_data_ops=None,
     table_report_plots_threshold=None,
@@ -149,7 +157,7 @@ def set_config(
     float_precision=None,
     cardinality_threshold=None,
     data_dir=None,
-    cache_dir=None,
+    cache_dir=UNCHANGED,
     eager_data_ops=None,
     data_ops_open_graph_dropdown=None,
 ):
@@ -394,6 +402,13 @@ def set_config(
         data_dir = Path(data_dir).expanduser().resolve()
         local_config["data_dir"] = str(data_dir)
 
+    if cache_dir is not UNCHANGED:
+        if cache_dir is True:
+            local_config["cache_dir"] = _get_default_cache_dir()
+        elif cache_dir is False:
+            local_config["cache_dir"] = None
+        else:
+            local_config["cache_dir"] = cache_dir
     if eager_data_ops is not None:
         local_config["eager_data_ops"] = eager_data_ops
 
@@ -419,7 +434,7 @@ def config_context(
     float_precision=None,
     cardinality_threshold=None,
     data_dir=None,
-    cache_dir=None,
+    cache_dir=UNCHANGED,
     eager_data_ops=None,
     data_ops_open_graph_dropdown=None,
 ):
@@ -566,6 +581,7 @@ def config_context(
         float_precision=float_precision,
         cardinality_threshold=cardinality_threshold,
         data_dir=data_dir,
+        cache_dir=cache_dir,
         eager_data_ops=eager_data_ops,
         data_ops_open_graph_dropdown=data_ops_open_graph_dropdown,
     )

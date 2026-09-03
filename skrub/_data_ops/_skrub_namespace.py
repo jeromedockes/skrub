@@ -160,7 +160,7 @@ class SkrubNamespace:
         allow_reject=False,
         unsupervised=False,
         kwargs=None,
-        use_cache=True,
+        no_cache=False,
     ):
         if kwargs is None:
             kwargs = {}
@@ -176,7 +176,7 @@ class SkrubNamespace:
                 allow_reject=allow_reject,
                 unsupervised=unsupervised,
                 kwargs=kwargs,
-                use_cache=use_cache,
+                no_cache=no_cache,
             )
         )
         return data_op
@@ -200,7 +200,7 @@ class SkrubNamespace:
         predict_proba_kwargs=None,
         decision_function_kwargs=None,
         score_kwargs=None,
-        use_cache=True,
+        no_cache=False,
     ):
         """
         Apply an estimator that follows the scikit-learn API to a dataframe or numpy array.
@@ -482,10 +482,10 @@ class SkrubNamespace:
                 "decision_function": decision_function_kwargs,
                 "score": score_kwargs,
             },
-            use_cache=use_cache,
+            no_cache=no_cache,
         )
 
-    def apply_func(self, func, *args, use_cache=False, **kwargs):
+    def apply_func(self, func, *args, no_cache=False, **kwargs):
         r"""Apply the given function.
 
         This is a convenience function; ``X.skb.apply_func(func)`` is
@@ -547,7 +547,7 @@ class SkrubNamespace:
         ―――――――
         2
         """
-        return deferred(use_cache=use_cache)(func)(self._data_op, *args, **kwargs)
+        return deferred(no_cache=no_cache)(func)(self._data_op, *args, **kwargs)
 
     @checked_data_op_constructor
     def if_else(self, value_if_true, value_if_false):
