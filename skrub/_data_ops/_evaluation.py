@@ -559,7 +559,10 @@ def _cache_pruner(data_op, mode):
     id_map = {id(node): node_id for node_id, node in g["nodes"].items()}
 
     def prune(data_op, result, **kwargs):
-        node_id = id_map[id(data_op)]
+        try:
+            node_id = id_map[id(data_op)]
+        except KeyError:
+            return
         for c in g["children"].get(node_id, ()):
             ref_counts[c] -= 1
             if ref_counts[c] == 0:

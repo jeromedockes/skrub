@@ -13,6 +13,7 @@ from .._select_cols import DropCols, SelectCols
 from ._data_ops import (
     AppliedEstimator,
     Apply,
+    Call,
     Concat,
     DataOp,
     FreezeAfterFit,
@@ -21,10 +22,10 @@ from ._data_ops import (
     Scoring,
     SplitX,
     Var,
+    _prepare_call,
     check_data_op,
     check_name,
     checked_data_op_constructor,
-    deferred,
 )
 from ._estimator import (
     ParamSearch,
@@ -547,12 +548,14 @@ class SkrubNamespace:
         ―――――――
         2
         """
-        call = deferred(func)(self._data_op, *args, **kwargs)
-        impl = call._skrub_impl
-        if hasattr(impl, "no_cache"):
-            # CallMethod nodes never use caching and do not have a no_cache attribute.
-            impl.no_cache = no_cache
-        return call
+        return DataOp(
+            Call(
+                **_prepare_call(func),
+                args=(self._data_op, *args),
+                kwargs=kwargs,
+                no_cache=no_cache,
+            )
+        )
 
     @checked_data_op_constructor
     def if_else(self, value_if_true, value_if_false):
