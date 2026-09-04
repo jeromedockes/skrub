@@ -1,5 +1,5 @@
 """
-Helper to cache estimator functions according to the config.
+Helper to cache functions and estimator methods according to the config.
 """
 
 import pickle
@@ -81,6 +81,7 @@ class Memory:
             return self.cache(_call_deferred_func)(*all_args)
         except pickle.PicklingError:
             pass
+        # Fall back to non-cached call if arguments cannot be serialized
         return _call_deferred_func(*all_args)
 
     def call_fitting_method(self, estimator, method_name, args, kwargs, *, no_cache):
