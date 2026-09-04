@@ -22,6 +22,7 @@ from ._data_ops import (
     Scoring,
     SplitX,
     Var,
+    _checked_deferred_call_constructor,
     _prepare_call,
     check_data_op,
     check_name,
@@ -486,6 +487,8 @@ class SkrubNamespace:
             no_cache=no_cache,
         )
 
+    @_checked_deferred_call_constructor
+    @checked_data_op_constructor
     def apply_func(self, func, *args, no_cache=False, **kwargs):
         r"""Apply the given function.
 
