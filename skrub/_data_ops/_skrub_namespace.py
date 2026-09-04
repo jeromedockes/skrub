@@ -547,7 +547,12 @@ class SkrubNamespace:
         ―――――――
         2
         """
-        return deferred(no_cache=no_cache)(func)(self._data_op, *args, **kwargs)
+        call = deferred(func)(self._data_op, *args, **kwargs)
+        impl = call._skrub_impl
+        if hasattr(impl, "no_cache"):
+            # CallMethod nodes never use caching and do not have a no_cache attribute.
+            impl.no_cache = no_cache
+        return call
 
     @checked_data_op_constructor
     def if_else(self, value_if_true, value_if_false):

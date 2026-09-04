@@ -1489,6 +1489,8 @@ class Apply(DataOpImpl):
 
         # 2. Call the appropriate estimator method
 
+        no_cache = yield self.no_cache
+
         if method_name == "fit" and hasattr(self.estimator_, "fit_transform"):
             # We are a transformer in 'fit' mode. Rather than `fit()` we call
             # `fit_transform()`. This is done even if the transformer is the
@@ -1519,7 +1521,7 @@ class Apply(DataOpImpl):
             if method_name == "fit_transform":
                 fit_kwargs = yield from self._eval_kwargs("fit")
                 self.estimator_, _, self.estimator_id_ = _MEMORY.call_fitting_method(
-                    self.estimator_, "fit", (X, y), fit_kwargs, no_cache=self.no_cache
+                    self.estimator_, "fit", (X, y), fit_kwargs, no_cache=no_cache
                 )
             predict_kwargs = yield from self._eval_kwargs("predict")
             pred = _MEMORY.call_non_fitting_method(
@@ -1528,7 +1530,7 @@ class Apply(DataOpImpl):
                 (X,),
                 predict_kwargs,
                 self.estimator_id_,
-                no_cache=self.no_cache,
+                no_cache=no_cache,
             )
             # In `(fit_)transform` mode only, format the predictions as a
             # dataframe or column if y was one during `fit()`
@@ -1543,7 +1545,7 @@ class Apply(DataOpImpl):
         kwargs = yield from self._eval_kwargs(method_name)
         if "fit" in method_name:
             self.estimator_, result, self.estimator_id_ = _MEMORY.call_fitting_method(
-                self.estimator_, method_name, args, kwargs, no_cache=self.no_cache
+                self.estimator_, method_name, args, kwargs, no_cache=no_cache
             )
             return result
         return _MEMORY.call_non_fitting_method(
@@ -1552,7 +1554,7 @@ class Apply(DataOpImpl):
             args,
             kwargs,
             self.estimator_id_,
-            no_cache=self.no_cache,
+            no_cache=no_cache,
         )
 
     def _store_y_format(self, y):
@@ -1780,7 +1782,7 @@ class CallMethod(DataOpImpl):
         return f".{_get_preview(self.method_name)}()"
 
 
-def deferred(func=None, *, no_cache=False):
+def deferred(func):
     """Wrap function calls in a DataOp :class:`DataOp`.
 
     When this decorator is applied, the resulting function returns DataOps.
@@ -1918,8 +1920,6 @@ def deferred(func=None, *, no_cache=False):
            [-0.87,  0.5 ],
            [-0.  ,  1.  ]])
     """  # noqa : E501
-    if func is None:
-        return functools.partial(deferred, no_cache=no_cache)
     from ._evaluation import needs_eval
 
     if isinstance(func, DataOp) or getattr(func, "_skrub_is_deferred", False):
@@ -1938,7 +1938,7 @@ def deferred(func=None, *, no_cache=False):
                 closure=(),
                 defaults=(),
                 kwdefaults={},
-                no_cache=no_cache,
+                no_cache=True,
             )
         )
 
@@ -1986,7 +1986,7 @@ def deferred(func=None, *, no_cache=False):
                 closure=closure,
                 defaults=func.__defaults__,
                 kwdefaults=func.__kwdefaults__,
-                no_cache=no_cache,
+                no_cache=True,
             )
         )
 
