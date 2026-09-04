@@ -644,6 +644,7 @@ class DataOp:
                 defaults=(),
                 kwdefaults={},
                 no_cache=True,
+                was_inspected=True,
             )
         )
 
