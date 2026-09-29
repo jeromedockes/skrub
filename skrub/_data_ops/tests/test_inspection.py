@@ -38,7 +38,7 @@ def test_output_dir(tmp_path):
 
 
 @pytest.mark.skipif(not _utils.has_graphviz(), reason="report requires graphviz")
-def test_full_report():
+def test_report():
     # smoke test for the full report
     # TODO we should have a private function that returns the JSON data so we
     #      can check the content before rendering with jinja
@@ -64,7 +64,7 @@ def test_full_report():
 
 
 @pytest.mark.skipif(not _utils.has_graphviz(), reason="report requires graphviz")
-def test_full_report_title():
+def test_report_title():
     # TODO we should have a private function that returns the JSON data so we
     #      can check the content before rendering with jinja
     # however that requires first settling on the content of the report etc.
@@ -75,7 +75,7 @@ def test_full_report_title():
 
 
 @pytest.mark.skipif(not _utils.has_graphviz(), reason="report requires graphviz")
-def test_full_report_no_eval():
+def test_report_no_eval():
     data_op = skrub.var("a", 12345) + 1
     report = data_op.skb.report(open=False, eval=False)
     assert report["result"] is None
@@ -93,7 +93,7 @@ def test_preview_subsample():
 
 
 @pytest.mark.skipif(not _utils.has_graphviz(), reason="report requires graphviz")
-def test_full_report_failed_apply():
+def test_report_failed_apply():
     # Somewhat contrived example for the corner case where an Apply does not
     # have an easily identifiable estimator.
     orders = skrub.datasets.toy_orders()
@@ -111,7 +111,7 @@ def test_full_report_failed_apply():
 
 
 @pytest.mark.skipif(not _utils.has_graphviz(), reason="report requires graphviz")
-def test_full_report_dataop_estimator(tmp_path):
+def test_report_dataop_estimator(tmp_path):
     # The estimator of an Apply can itself be a DataOp (the function/estimator
     # to apply is computed dynamically). Here the estimator's variable is not
     # provided so the node is not evaluated and there is no fitted
@@ -400,7 +400,7 @@ def test_report_score_mode_with_scoring():
 
 
 @pytest.mark.skipif(not _utils.has_graphviz(), reason="report requires graphviz")
-def test_full_report_open(monkeypatch):
+def test_report_open(monkeypatch):
     mock = Mock()
     monkeypatch.setattr(webbrowser, "open", mock)
     skrub.as_data_op(0).skb.report()

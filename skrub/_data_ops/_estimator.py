@@ -210,7 +210,7 @@ class SkrubLearner(_DataOpWrapperMixin, SkrubBaseEstimator):
         self._set_is_fitted(mode)
         return result
 
-    def report(self, *, environment=None, mode=None, **full_report_kwargs):
+    def report(self, *, environment=None, mode=None, **report_kwargs):
         """Call the method specified by ``mode`` and return the result and full report.
 
         See :meth:`DataOp.skb.report` for more information.
@@ -228,7 +228,7 @@ class SkrubLearner(_DataOpWrapperMixin, SkrubBaseEstimator):
             ``"fit"``, ``"predict"``, etc.
             Must be provided unless passing eval=False, in which case it must
             be left to None (the default).
-        full_report_kwargs : dict
+        report_kwargs : dict
             See :meth:`DataOp.skb.report`
 
         Returns
@@ -272,7 +272,7 @@ class SkrubLearner(_DataOpWrapperMixin, SkrubBaseEstimator):
         >>> predict_results['result']  # doctest: +SKIP
         array([0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0])
         """
-        if not full_report_kwargs.get("eval", True):
+        if not report_kwargs.get("eval", True):
             if environment is not None:
                 raise TypeError(
                     "environment must be None when eval=False, "
@@ -282,7 +282,7 @@ class SkrubLearner(_DataOpWrapperMixin, SkrubBaseEstimator):
                 raise TypeError(
                     f"mode must be None when eval=False, got {type(mode).__name__!r}."
                 )
-            return self.data_op.skb.report(**full_report_kwargs)
+            return self.data_op.skb.report(**report_kwargs)
 
         if environment is None:
             raise TypeError(
@@ -300,14 +300,14 @@ class SkrubLearner(_DataOpWrapperMixin, SkrubBaseEstimator):
                 "Creating the report for 'score' mode when .skb.with_scoring() "
                 "has been used is not implemented yet."
             )
-        from ._inspection import full_report
+        from ._inspection import report
 
         if mode not in _FITTING_METHODS:
             check_is_fitted(self)
 
-        full_report_kwargs["clear"] = True
-        result = full_report(
-            self.data_op, environment=environment, mode=mode, **full_report_kwargs
+        report_kwargs["clear"] = True
+        result = report(
+            self.data_op, environment=environment, mode=mode, **report_kwargs
         )
         if mode == "fit" and result["result"] is not None:
             result["result"] = self
