@@ -24,6 +24,33 @@
             ' fill: var(--current-node-color); stroke-width: 3; }');
     });
 
+    // Links in the graph target the iframe. Instead of letting the browser
+    // navigate it (which would add an entry to the history), ask the page in
+    // the iframe to replace itself. Cross-origin restrictions (file:// pages
+    // are treated as different origins) prevent us from changing the iframe's
+    // location directly, hence the message.
+    document.addEventListener('click', (event) => {
+        if (event.defaultPrevented || event.button !== 0 ||
+            event.metaKey || event.ctrlKey || event.shiftKey ||
+            event.altKey || !(event.target instanceof Element)) {
+            return;
+        }
+        const link = event.target.closest('a');
+        if (!link || link.getAttribute('target') !== 'node-frame') {
+            return;
+        }
+        const href = link.getAttribute('href') ||
+            link.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+        if (!href) {
+            return;
+        }
+        event.preventDefault();
+        frame.contentWindow.postMessage({
+            type: 'skrub-report-navigate',
+            url: new URL(href, window.location.href).href,
+        }, '*');
+    });
+
     document.getElementById('toggle-nav').addEventListener('click', () => {
         document.querySelector('nav').toggleAttribute('data-is-open');
     });

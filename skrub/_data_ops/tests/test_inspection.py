@@ -123,6 +123,15 @@ def test_report_without_graphviz(no_graphviz):
     assert (report_dir / "placeholder.html").exists()
     for page in index, (report_dir / "node_1.html").read_text("utf-8"):
         assert "skrub-report-node-shown" in page
+    # Navigation between report pages must not add entries to the browser's
+    # history: node pages use location.replace() and the index asks the iframe
+    # to navigate instead of following the graph's links directly.
+    for page in (
+        index,
+        (report_dir / "node_1.html").read_text("utf-8"),
+        (report_dir / "placeholder.html").read_text("utf-8"),
+    ):
+        assert "skrub-report-navigate" in page
 
 
 def test_preview_subsample():

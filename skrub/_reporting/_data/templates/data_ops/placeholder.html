@@ -10,6 +10,7 @@
     </style>
     {# The page displayed in the iframe of index.html when no node is selected. #}
     {% with node_id=none %}{% include "node-shown-script.html" %}{% endwith %}
+    {% include "report-navigation-script.html" %}
 </head>
 
 <body class="node-page">
