@@ -1,24 +1,39 @@
 <script>
- // Follow links within the report with location.replace() so that moving
- // between node pages does not add entries to the browser's back-button
- // history: pressing Back returns to the page from which the report was
- // opened, rather than stepping through the report pages that were visited.
- // The graph itself is in index.html and its links target this iframe; it
- // sends us a message asking us to navigate (see data_ops-report.js).
+ // Node pages are displayed in the drawer iframe of index.html. Instead of
+ // navigating this iframe (which would add entries to the browser's back-button
+ // history), ask the index page to open the target in a fresh iframe. Source
+ // code pages are opened in a separate drawer view so that they can be
+ // dismissed to return to the node details.
  (function () {
      const here = new URL(window.location.href);
      const reportDir = here.pathname.slice(
          0, here.pathname.lastIndexOf("/") + 1);
-     function navigate(url) {
+     const sourceDir = new URL("python/", here).pathname;
+     function classify(url) {
          const target = new URL(url, here);
-         const isReportPage = (
-             target.protocol === here.protocol &&
-             target.host === here.host &&
-             target.pathname.startsWith(reportDir));
-         if (isReportPage) {
-             window.location.replace(target.href);
+         if (target.protocol !== here.protocol ||
+             target.host !== here.host ||
+             !target.pathname.startsWith(reportDir)) {
+             return null;
          }
-         return isReportPage;
+         return target.pathname.startsWith(sourceDir) ? "source" : "node";
+     }
+     function follow(url) {
+         const kind = classify(url);
+         if (kind === null) {
+             return false;
+         }
+         url = new URL(url, here).href;
+         if (window.parent === window) {
+             window.location.replace(url);
+         } else {
+             window.parent.postMessage({
+                 type: kind === "source"
+                     ? "skrub-report-source" : "skrub-report-navigate",
+                 url: url,
+             }, "*");
+         }
+         return true;
      }
      document.addEventListener("click", (event) => {
          if (event.defaultPrevented || event.button !== 0 ||
@@ -37,18 +52,9 @@
              link.hasAttribute("download")) {
              return;
          }
-         if (navigate(href)) {
+         if (follow(href)) {
              event.preventDefault();
          }
-     });
-     window.addEventListener("message", (event) => {
-         if (event.source !== window.parent) {
-             return;
-         }
-         if (!event.data || event.data.type !== "skrub-report-navigate") {
-             return;
-         }
-         navigate(event.data.url);
      });
  })();
 </script>

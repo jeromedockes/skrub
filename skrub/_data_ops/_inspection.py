@@ -311,11 +311,6 @@ def _make_report(
     )
     index_file = output_dir / "index.html"
     index_file.write_text(index, "utf-8")
-    # shown in the index's iframe when no node is selected
-    placeholder = jinja_env.get_template("placeholder.html").render(
-        {"report_title": title}
-    )
-    (output_dir / "placeholder.html").write_text(placeholder, "utf-8")
 
     for i, node in g["nodes"].items():
         report, error, error_msg = None, None, None

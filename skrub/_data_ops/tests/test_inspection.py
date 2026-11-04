@@ -118,20 +118,16 @@ def test_report_without_graphviz(no_graphviz):
     # the library that draws the graph is in the page
     assert "window.skrubGraphviz = " in index
     # names shared by the pages, the graph and the scripts: clicking a node
-    # displays its page in the iframe, which tells the index which node is shown
-    assert 'name="node-frame"' in index and 'target="node-frame"' in dot
-    assert (report_dir / "placeholder.html").exists()
-    for page in index, (report_dir / "node_1.html").read_text("utf-8"):
-        assert "skrub-report-node-shown" in page
+    # opens its page in the drawer, which tells the index which node is shown
+    assert "node-frame" in index and 'target="node-frame"' in dot
+    node = (report_dir / "node_1.html").read_text("utf-8")
+    assert "skrub-report-node-shown" in index and "skrub-report-node-shown" in node
     # Navigation between report pages must not add entries to the browser's
-    # history: node pages use location.replace() and the index asks the iframe
-    # to navigate instead of following the graph's links directly.
-    for page in (
-        index,
-        (report_dir / "node_1.html").read_text("utf-8"),
-        (report_dir / "placeholder.html").read_text("utf-8"),
-    ):
+    # history: the index opens a fresh iframe instead of navigating an existing
+    # one, and source code pages open in a separate dismissible view.
+    for page in index, node:
         assert "skrub-report-navigate" in page
+        assert "skrub-report-source" in page
 
 
 def test_preview_subsample():

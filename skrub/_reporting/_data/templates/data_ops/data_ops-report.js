@@ -1,34 +1,102 @@
 (function() {
+    const drawer = document.getElementById('drawer');
+    const nodeView = document.getElementById('node-view');
+    const sourceView = document.getElementById('source-view');
+    const nodeFrameContainer = document.getElementById('node-frame-container');
+    const sourceFrameContainer = document.getElementById('source-frame-container');
+    const highlightStyle = document.getElementById('current-node-style');
+
+    // The iframe showing the selected node. It is recreated each time we open
+    // a node: navigating an existing iframe would add entries to the browser's
+    // history, whereas loading a fresh one does not.
+    let nodeFrame = null;
+
+    function makeFrame(description) {
+        const frame = document.createElement('iframe');
+        frame.title = description;
+        return frame;
+    }
+
+    function openNode(url) {
+        // If a source file is being displayed, discard it and go back to the
+        // node view.
+        closeSource();
+
+        nodeFrameContainer.replaceChildren();
+        nodeFrame = makeFrame('Details of the selected node');
+        nodeFrame.name = 'node-frame';
+        nodeFrame.src = url;
+        nodeFrameContainer.append(nodeFrame);
+
+        nodeView.hidden = false;
+        drawer.hidden = false;
+        document.body.classList.add('drawer-open');
+    }
+
+    function closeDrawer() {
+        nodeFrameContainer.replaceChildren();
+        nodeFrame = null;
+        closeSource();
+        drawer.hidden = true;
+        document.body.classList.remove('drawer-open');
+        highlightStyle.textContent = '';
+    }
+
+    function openSource(url) {
+        sourceFrameContainer.replaceChildren();
+        const frame = makeFrame('Source code');
+        frame.src = url;
+        sourceFrameContainer.append(frame);
+
+        nodeView.hidden = true;
+        sourceView.hidden = false;
+        drawer.hidden = false;
+        document.body.classList.add('drawer-open');
+    }
+
+    function closeSource() {
+        sourceFrameContainer.replaceChildren();
+        sourceView.hidden = true;
+        if (!drawer.hidden) {
+            nodeView.hidden = false;
+        }
+    }
+
+    document.getElementById('close-drawer').addEventListener('click', closeDrawer);
+    document.getElementById('close-source').addEventListener('click', closeSource);
+
     // Node pages are displayed in the iframe and tell us which node they show
-    // (see node.html). We cannot read the iframe's location ourselves: for
-    // file:// URLs browsers treat it as cross-origin.
+    // (see node.html). They also ask us to open other report pages: this lets
+    // us replace the iframe instead of navigating it. We cannot read the
+    // iframe's location ourselves: for file:// URLs browsers treat it as
+    // cross-origin.
     //
     // The current node is highlighted with a CSS rule rather than by editing
     // the graph, so that it does not matter whether the graph is already
     // there: it may be rendered later by the browser (when graphviz is not
     // installed).
-    const frame = document.getElementById('node-frame');
-    const highlightStyle = document.getElementById('current-node-style');
-
     window.addEventListener('message', (event) => {
-        if (event.source !== frame.contentWindow) {
+        if (!nodeFrame || event.source !== nodeFrame.contentWindow) {
             return;
         }
-        if (!event.data || event.data.type !== 'skrub-report-node-shown') {
+        if (!event.data || typeof event.data !== 'object') {
             return;
         }
-        const nodeId = event.data.nodeId;
-        // nodeId is null for pages that do not show a particular node
-        highlightStyle.textContent = (nodeId === null) ? '' : (
-            `#node_${Number(nodeId)} polygon {` +
-            ' fill: var(--current-node-color); stroke-width: 3; }');
+        if (event.data.type === 'skrub-report-node-shown') {
+            const nodeId = event.data.nodeId;
+            // nodeId is null for pages that do not show a particular node
+            highlightStyle.textContent = (nodeId === null) ? '' : (
+                `#node_${Number(nodeId)} polygon {` +
+                ' fill: var(--current-node-color); stroke-width: 3; }');
+        } else if (event.data.type === 'skrub-report-navigate') {
+            openNode(event.data.url);
+        } else if (event.data.type === 'skrub-report-source') {
+            openSource(event.data.url);
+        }
     });
 
-    // Links in the graph target the iframe. Instead of letting the browser
-    // navigate it (which would add an entry to the history), ask the page in
-    // the iframe to replace itself. Cross-origin restrictions (file:// pages
-    // are treated as different origins) prevent us from changing the iframe's
-    // location directly, hence the message.
+    // Links in the graph target the iframe. Open the node drawer instead of
+    // letting the browser navigate the iframe.
     document.addEventListener('click', (event) => {
         if (event.defaultPrevented || event.button !== 0 ||
             event.metaKey || event.ctrlKey || event.shiftKey ||
@@ -45,13 +113,15 @@
             return;
         }
         event.preventDefault();
-        frame.contentWindow.postMessage({
-            type: 'skrub-report-navigate',
-            url: new URL(href, window.location.href).href,
-        }, '*');
+        openNode(new URL(href, window.location.href).href);
     });
 
-    document.getElementById('toggle-nav').addEventListener('click', () => {
-        document.querySelector('nav').toggleAttribute('data-is-open');
+    const toggleNav = document.getElementById('toggle-nav');
+    const toggleNavLabel = document.getElementById('toggle-nav-label');
+    toggleNav.addEventListener('click', () => {
+        const isOpen = document.querySelector('nav').toggleAttribute('data-is-open');
+        toggleNav.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        toggleNav.title = isOpen ? 'Hide graph' : 'Show graph';
+        toggleNavLabel.textContent = isOpen ? 'Hide graph' : 'Show graph';
     });
 })();

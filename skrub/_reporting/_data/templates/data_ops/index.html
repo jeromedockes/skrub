@@ -13,28 +13,43 @@
 
 <body class="report-index">
     <header class="report-header">
-        <button type="button" class="icon-button"
-            id="toggle-nav">{% include "icons/list.svg" %}</button>
-        {% if report_title %}
-        <h2 class="report-title">{{ report_title }}</h2>
-        {% endif %}
+        <h2 class="report-title">{{ report_title if report_title else "DataOp report" }}</h2>
+        <button type="button" class="header-button" id="toggle-nav"
+            aria-controls="graph-nav" aria-expanded="true" title="Hide graph">
+            {% include "icons/list.svg" %}
+            <span id="toggle-nav-label">Hide graph</span>
+        </button>
     </header>
     <div class="data_op-node-wrapper">
         <div class="data_op-node">
             {#
               The graph is only shown in this page, and it is drawn only once.
-              Node pages are displayed in the iframe next to it; clicking on a
-              node of the graph targets that iframe, and node pages tell this
-              page which node they show (see data_ops-report.js).
+              Clicking on a node opens the node drawer next to it. Node pages
+              are loaded into a fresh iframe each time so that navigating
+              around the report does not add entries to the browser history.
+              Source code links shown in node pages are displayed in a second
+              drawer view, from which we can return to the node details.
             #}
             <nav class="main-nav" data-is-open>
+                <p class="graph-hint"><strong>Click a node</strong> to display its details.</p>
                 <div id="graph-nav">
                     {{ graph_html | safe }}
                 </div>
             </nav>
-            <iframe id="node-frame" name="node-frame" class="node-frame"
-                    title="Details of the selected node"
-                    src="placeholder.html"></iframe>
+            <div id="drawer" class="drawer" hidden>
+                <div id="node-view" class="drawer-view">
+                    <div class="drawer-toolbar">
+                        <button type="button" id="close-drawer">Close</button>
+                    </div>
+                    <div id="node-frame-container" class="drawer-body"></div>
+                </div>
+                <div id="source-view" class="drawer-view" hidden>
+                    <div class="drawer-toolbar">
+                        <button type="button" id="close-source">Back to node details</button>
+                    </div>
+                    <div id="source-frame-container" class="drawer-body"></div>
+                </div>
+            </div>
         </div>
     </div>
 </body>
