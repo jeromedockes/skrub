@@ -307,6 +307,7 @@ def _make_report(
             "graph_html": graph_html,
             "report_title": title,
             "eval": eval,
+            "total_n_nodes": len(g["nodes"]),
         }
     )
     index_file = output_dir / "index.html"

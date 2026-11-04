@@ -10,11 +10,44 @@
     // a node: navigating an existing iframe would add entries to the browser's
     // history, whereas loading a fresh one does not.
     let nodeFrame = null;
+    const totalNNodes = Number(document.body.dataset.totalNodes);
 
     function makeFrame(description) {
         const frame = document.createElement('iframe');
         frame.title = description;
         return frame;
+    }
+
+    function nodeIdFromUrl(url) {
+        const pathname = new URL(url, window.location.href).pathname;
+        const match = /(?:^|\/)node_(\d+)\.html$/.exec(pathname);
+        return match ? Number(match[1]) : null;
+    }
+
+    function nodeUrl(nodeId) {
+        return new URL(`node_${nodeId}.html`, window.location.href).href;
+    }
+
+    function setNodeHash(nodeId) {
+        const url = new URL(window.location.href);
+        const hash = nodeId === null ? '' : `node_${nodeId}`;
+        if (url.hash === (hash ? `#${hash}` : '')) {
+            return;
+        }
+        url.hash = hash;
+        window.history.replaceState(null, '', url.href);
+    }
+
+    function nodeIdFromHash() {
+        const match = /^#node_(\d+)$/.exec(window.location.hash);
+        if (!match) {
+            return null;
+        }
+        const nodeId = Number(match[1]);
+        if (!Number.isInteger(nodeId) || nodeId < 0 || nodeId >= totalNNodes) {
+            return null;
+        }
+        return nodeId;
     }
 
     function openNode(url) {
@@ -31,6 +64,7 @@
         nodeView.hidden = false;
         drawer.hidden = false;
         document.body.classList.add('drawer-open');
+        setNodeHash(nodeIdFromUrl(url));
     }
 
     function closeDrawer() {
@@ -40,6 +74,7 @@
         drawer.hidden = true;
         document.body.classList.remove('drawer-open');
         highlightStyle.textContent = '';
+        setNodeHash(null);
     }
 
     function openSource(url) {
@@ -115,6 +150,22 @@
         event.preventDefault();
         openNode(new URL(href, window.location.href).href);
     });
+
+    window.addEventListener('hashchange', () => {
+        const nodeId = nodeIdFromHash();
+        if (nodeId === null) {
+            if (!drawer.hidden) {
+                closeDrawer();
+            }
+        } else {
+            openNode(nodeUrl(nodeId));
+        }
+    });
+
+    const initialNodeId = nodeIdFromHash();
+    if (initialNodeId !== null) {
+        openNode(nodeUrl(initialNodeId));
+    }
 
     const toggleNav = document.getElementById('toggle-nav');
     const toggleNavLabel = document.getElementById('toggle-nav-label');

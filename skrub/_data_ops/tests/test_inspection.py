@@ -117,6 +117,10 @@ def test_report_without_graphviz(no_graphviz):
     assert dot.count("skipped-node") == 1
     # the library that draws the graph is in the page
     assert "window.skrubGraphviz = " in index
+    # the index knows how many nodes it contains, for validating links like
+    # index.html#node_3
+    assert re.search(r'data-total-nodes="\d+"', index)
+    assert "history.replaceState" in index
     # names shared by the pages, the graph and the scripts: clicking a node
     # opens its page in the drawer, which tells the index which node is shown
     assert "node-frame" in index and 'target="node-frame"' in dot
