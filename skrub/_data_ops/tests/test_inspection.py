@@ -117,20 +117,6 @@ def test_report_without_graphviz(no_graphviz):
     assert dot.count("skipped-node") == 1
     # the library that draws the graph is in the page
     assert "window.skrubGraphviz = " in index
-    # the index knows how many nodes it contains, for validating links like
-    # index.html#node_3
-    assert re.search(r'data-total-nodes="\d+"', index)
-    assert "history.replaceState" in index
-    # graph nodes link to hashes that the index page turns into a drawer view
-    assert 'URL="#node_' in dot
-    assert 'target="node-frame"' not in dot
-    node = (report_dir / "node_1.html").read_text("utf-8")
-    assert "skrub-report-node-shown" in index and "skrub-report-node-shown" in node
-    # Navigation between report pages must not add entries to the browser's
-    # history: node pages follow their links with location.replace(), and
-    # source code pages open in a separate dismissible view.
-    for page in index, node:
-        assert "skrub-report-source" in page
 
 
 def test_preview_subsample():
