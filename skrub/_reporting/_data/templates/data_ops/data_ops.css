@@ -73,19 +73,14 @@ pre, code {
 .data_op-node > nav.main-nav {
     border-right: 2px solid #ccc;
     flex-shrink: 0;
+    resize: horizontal;
+    min-width: 8rem;
+    box-sizing: border-box;
 }
 
 .node-details {
     flex-grow: 1;
     flex-shrink: 1;
-}
-
-.data_op-node > nav.main-nav {
-    resize: horizontal;
-    min-width: 8rem;
-    /* A wide graph scrolls rather than squeezing the node details. */
-    max-width: 75vw;
-    box-sizing: border-box;
 }
 
 /* Drawer displaying the selected node (or a source file) next to the graph. */
@@ -262,7 +257,6 @@ pre, code {
 
 .report-index .data_op-node > nav.main-nav {
     flex: 1 1 auto;
-    max-width: none;
 }
 
 /* When the drawer is open the graph and the drawer share the width. */

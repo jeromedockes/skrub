@@ -103,10 +103,10 @@
     document.getElementById('close-drawer').addEventListener('click', closeDrawer);
     document.getElementById('close-source').addEventListener('click', closeSource);
 
-    // Messages from the node page: which node it shows (we update the highlight
-    // node in the graph and the URL hash; it may differ from the one we opened,
-    // as node pages have previous / next / parent / child links), and requests
-    // to display a source file in the second drawer view.
+    // Messages from the node page: which node it shows (we update which node is
+    // highlighted in the graph and the URL hash; it may differ from the one we
+    // opened, as node pages have previous / next / parent / child links), and
+    // requests to display a source file in the second drawer view.
     window.addEventListener('message', (event) => {
         if (!nodeFrame || event.source !== nodeFrame.contentWindow) {
             return;
@@ -153,12 +153,24 @@
         openNode(initialNodeId);
     }
 
+    // The hash is edited by hand in the address bar of an open report. Our own
+    // updates (replaceState) do not trigger this event.
+    window.addEventListener('hashchange', () => {
+        const nodeId = nodeIdFromHash();
+        if (nodeId !== null) {
+            openNode(nodeId);
+        } else if (window.location.hash === '') {
+            closeDrawer();
+        }
+    });
+
     // Button that shows or hides the graph panel.
+    const graphPanel = document.getElementById('graph-panel');
     const toggleNav = document.getElementById('toggle-nav');
     // Label inside the graph toggle button.
     const toggleNavLabel = document.getElementById('toggle-nav-label');
     toggleNav.addEventListener('click', () => {
-        const isOpen = document.querySelector('nav').toggleAttribute('data-is-open');
+        const isOpen = graphPanel.toggleAttribute('data-is-open');
         toggleNav.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         toggleNav.title = isOpen ? 'Hide graph' : 'Show graph';
         toggleNavLabel.textContent = isOpen ? 'Hide graph' : 'Show graph';
