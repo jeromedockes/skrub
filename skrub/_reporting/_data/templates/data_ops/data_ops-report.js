@@ -4,6 +4,9 @@
     const sourceView = document.getElementById('source-view');
     const nodeFrameContainer = document.getElementById('node-frame-container');
     const sourceFrameContainer = document.getElementById('source-frame-container');
+    // Style element used to highlight the current node in the graph. We set a
+    // CSS rule rather than an attribute on the node so that it works even if
+    // the graph has not been rendered yet or the node cannot easily be found.
     const highlightStyle = document.getElementById('current-node-style');
 
     // The iframe showing the selected node. It is recreated each time we open
@@ -38,10 +41,7 @@
             return null;
         }
         const nodeId = Number(match[1]);
-        if (!Number.isInteger(nodeId) || nodeId < 0 || nodeId >= totalNNodes) {
-            return null;
-        }
-        return nodeId;
+        return nodeId < totalNNodes ? nodeId : null;
     }
 
     function openNode(nodeId) {
@@ -102,7 +102,8 @@
     // The current node is highlighted with a CSS rule rather than by editing
     // the graph, so that it does not matter whether the graph is already
     // there: it may be rendered later by the browser (when graphviz is not
-    // installed).
+    // installed for the python process that creates the report, the graph is
+    // drawn in the browser).
     window.addEventListener('message', (event) => {
         if (!nodeFrame || event.source !== nodeFrame.contentWindow) {
             return;
@@ -111,14 +112,11 @@
             return;
         }
         if (event.data.type === 'skrub-report-node-shown') {
-            const nodeId = event.data.nodeId;
-            // nodeId is null for pages that do not show a particular node
-            highlightStyle.textContent = (nodeId === null) ? '' : (
-                `#node_${Number(nodeId)} polygon {` +
+            const nodeId = Number(event.data.nodeId);
+            highlightStyle.textContent = (
+                `#node_${nodeId} polygon {` +
                 ' fill: var(--current-node-color); stroke-width: 3; }');
-            if (nodeId !== null) {
-                setNodeHash(Number(nodeId));
-            }
+            setNodeHash(nodeId);
         } else if (event.data.type === 'skrub-report-source') {
             openSource(event.data.url);
         }
@@ -152,7 +150,9 @@
         openNode(initialNodeId);
     }
 
+    // Button that shows or hides the graph panel.
     const toggleNav = document.getElementById('toggle-nav');
+    // Label inside the graph toggle button.
     const toggleNavLabel = document.getElementById('toggle-nav-label');
     toggleNav.addEventListener('click', () => {
         const isOpen = document.querySelector('nav').toggleAttribute('data-is-open');
