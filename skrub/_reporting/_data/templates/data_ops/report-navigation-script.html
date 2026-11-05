@@ -1,8 +1,8 @@
 <script>
- // Node pages are displayed in the drawer iframe of index.html. Instead of
- // navigating this iframe (which would add entries to the browser's back-button
- // history), ask the index page to open the target in a fresh iframe. Source
- // code pages are opened in a separate drawer view so that they can be
+ // Node pages are displayed in the drawer iframe of index.html. Follow links
+ // with location.replace() so that navigating between pages does not add
+ // entries to the browser's back-button history. Source code pages are opened
+ // in a separate drawer view (by the parent page) so that they can be
  // dismissed to return to the node details.
  (function () {
      const here = new URL(window.location.href);
@@ -24,14 +24,13 @@
              return false;
          }
          url = new URL(url, here).href;
-         if (window.parent === window) {
-             window.location.replace(url);
-         } else {
+         if (kind === "source" && window.parent !== window) {
              window.parent.postMessage({
-                 type: kind === "source"
-                     ? "skrub-report-source" : "skrub-report-navigate",
+                 type: "skrub-report-source",
                  url: url,
              }, "*");
+         } else {
+             window.location.replace(url);
          }
          return true;
      }

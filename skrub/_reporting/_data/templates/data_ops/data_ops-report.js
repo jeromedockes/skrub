@@ -18,12 +18,6 @@
         return frame;
     }
 
-    function nodeIdFromUrl(url) {
-        const pathname = new URL(url, window.location.href).pathname;
-        const match = /(?:^|\/)node_(\d+)\.html$/.exec(pathname);
-        return match ? Number(match[1]) : null;
-    }
-
     function nodeUrl(nodeId) {
         return new URL(`node_${nodeId}.html`, window.location.href).href;
     }
@@ -50,7 +44,7 @@
         return nodeId;
     }
 
-    function openNode(url) {
+    function openNode(nodeId) {
         // If a source file is being displayed, discard it and go back to the
         // node view.
         closeSource();
@@ -58,13 +52,13 @@
         nodeFrameContainer.replaceChildren();
         nodeFrame = makeFrame('Details of the selected node');
         nodeFrame.name = 'node-frame';
-        nodeFrame.src = url;
+        nodeFrame.src = nodeUrl(nodeId);
         nodeFrameContainer.append(nodeFrame);
 
         nodeView.hidden = false;
         drawer.hidden = false;
         document.body.classList.add('drawer-open');
-        setNodeHash(nodeIdFromUrl(url));
+        setNodeHash(nodeId);
     }
 
     function closeDrawer() {
@@ -100,11 +94,10 @@
     document.getElementById('close-drawer').addEventListener('click', closeDrawer);
     document.getElementById('close-source').addEventListener('click', closeSource);
 
-    // Node pages are displayed in the iframe and tell us which node they show
-    // (see node.html). They also ask us to open other report pages: this lets
-    // us replace the iframe instead of navigating it. We cannot read the
-    // iframe's location ourselves: for file:// URLs browsers treat it as
-    // cross-origin.
+    // Node pages tell us which node they show (see node.html) so that we can
+    // update the graph highlight and the shareable URL. Source code links ask
+    // us to open them in a separate drawer view. We cannot read the iframe's
+    // location ourselves: for file:// URLs browsers treat it as cross-origin.
     //
     // The current node is highlighted with a CSS rule rather than by editing
     // the graph, so that it does not matter whether the graph is already
@@ -123,15 +116,17 @@
             highlightStyle.textContent = (nodeId === null) ? '' : (
                 `#node_${Number(nodeId)} polygon {` +
                 ' fill: var(--current-node-color); stroke-width: 3; }');
-        } else if (event.data.type === 'skrub-report-navigate') {
-            openNode(event.data.url);
+            if (nodeId !== null) {
+                setNodeHash(Number(nodeId));
+            }
         } else if (event.data.type === 'skrub-report-source') {
             openSource(event.data.url);
         }
     });
 
-    // Links in the graph target the iframe. Open the node drawer instead of
-    // letting the browser navigate the iframe.
+    // Graph nodes link to a hash such as "#node_3". Open the corresponding
+    // node in the drawer ourselves so that following the link replaces the
+    // current history entry rather than adding a new one.
     document.addEventListener('click', (event) => {
         if (event.defaultPrevented || event.button !== 0 ||
             event.metaKey || event.ctrlKey || event.shiftKey ||
@@ -139,32 +134,22 @@
             return;
         }
         const link = event.target.closest('a');
-        if (!link || link.getAttribute('target') !== 'node-frame') {
+        if (!link) {
             return;
         }
         const href = link.getAttribute('href') ||
             link.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
-        if (!href) {
+        const match = href && /^#node_(\d+)$/.exec(href);
+        if (!match) {
             return;
         }
         event.preventDefault();
-        openNode(new URL(href, window.location.href).href);
-    });
-
-    window.addEventListener('hashchange', () => {
-        const nodeId = nodeIdFromHash();
-        if (nodeId === null) {
-            if (!drawer.hidden) {
-                closeDrawer();
-            }
-        } else {
-            openNode(nodeUrl(nodeId));
-        }
+        openNode(Number(match[1]));
     });
 
     const initialNodeId = nodeIdFromHash();
     if (initialNodeId !== null) {
-        openNode(nodeUrl(initialNodeId));
+        openNode(initialNodeId);
     }
 
     const toggleNav = document.getElementById('toggle-nav');

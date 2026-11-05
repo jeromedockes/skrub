@@ -121,16 +121,15 @@ def test_report_without_graphviz(no_graphviz):
     # index.html#node_3
     assert re.search(r'data-total-nodes="\d+"', index)
     assert "history.replaceState" in index
-    # names shared by the pages, the graph and the scripts: clicking a node
-    # opens its page in the drawer, which tells the index which node is shown
-    assert "node-frame" in index and 'target="node-frame"' in dot
+    # graph nodes link to hashes that the index page turns into a drawer view
+    assert 'URL="#node_' in dot
+    assert 'target="node-frame"' not in dot
     node = (report_dir / "node_1.html").read_text("utf-8")
     assert "skrub-report-node-shown" in index and "skrub-report-node-shown" in node
     # Navigation between report pages must not add entries to the browser's
-    # history: the index opens a fresh iframe instead of navigating an existing
-    # one, and source code pages open in a separate dismissible view.
+    # history: node pages follow their links with location.replace(), and
+    # source code pages open in a separate dismissible view.
     for page in index, node:
-        assert "skrub-report-navigate" in page
         assert "skrub-report-source" in page
 
 
@@ -517,11 +516,9 @@ def test_vendored_graphviz_library():
 def test_node_kwargs_link():
     node = skrub.var("a")
     assert "URL" not in _inspection._node_kwargs(node)
-    kwargs = _inspection._node_kwargs(node, url=lambda _: "page.html")
-    assert kwargs["URL"] == "page.html"
+    kwargs = _inspection._node_kwargs(node, url=lambda _: "#node_0")
+    assert kwargs["URL"] == "#node_0"
     assert "target" not in kwargs
-    kwargs = _inspection._node_kwargs(node, url=lambda _: "page.html", target="frame")
-    assert kwargs["target"] == "frame"
 
 
 def test_js_rendering_font():
