@@ -1,17 +1,28 @@
+// Index page of the report: the graph, plus a "drawer" showing a node page (or
+// a source file) in an iframe next to it.
+//
+// - Clicking a graph node, or loading index.html#node_3, opens that node. The
+//   hash is kept up to date with replaceState so the URL for a specific node
+//   can be shared.
+// - The browser's back button must leave the report rather than step through
+//   nodes. So each node is opened in a fresh iframe (the initial load of an
+//   iframe adds no history entry), and pages inside the iframe navigate with
+//   location.replace() (see report-navigation.js).
+// - The report must work from file:// URLs, where the iframe is cross-origin
+//   and we cannot read its location. Node pages therefore tell us what they
+//   show via postMessage (see node.html and report-navigation.js).
 (function() {
     const drawer = document.getElementById('drawer');
     const nodeView = document.getElementById('node-view');
     const sourceView = document.getElementById('source-view');
     const nodeFrameContainer = document.getElementById('node-frame-container');
     const sourceFrameContainer = document.getElementById('source-frame-container');
-    // Style element used to highlight the current node in the graph. We set a
-    // CSS rule rather than an attribute on the node so that it works even if
-    // the graph has not been rendered yet or the node cannot easily be found.
+    // The current node is highlighted with a CSS rule rather than by editing
+    // the graph, so that it works whether the graph was drawn by python or is
+    // drawn later by the browser.
     const highlightStyle = document.getElementById('current-node-style');
 
-    // The iframe showing the selected node. It is recreated each time we open
-    // a node: navigating an existing iframe would add entries to the browser's
-    // history, whereas loading a fresh one does not.
+    // The iframe showing the selected node; recreated for each node.
     let nodeFrame = null;
     const totalNNodes = Number(document.body.dataset.totalNodes);
 
@@ -25,6 +36,7 @@
         return new URL(`node_${nodeId}.html`, window.location.href).href;
     }
 
+    // Keep the URL shareable (index.html#node_3) without adding history entries.
     function setNodeHash(nodeId) {
         const url = new URL(window.location.href);
         const hash = nodeId === null ? '' : `node_${nodeId}`;
@@ -45,13 +57,10 @@
     }
 
     function openNode(nodeId) {
-        // If a source file is being displayed, discard it and go back to the
-        // node view.
         closeSource();
 
         nodeFrameContainer.replaceChildren();
         nodeFrame = makeFrame('Details of the selected node');
-        nodeFrame.name = 'node-frame';
         nodeFrame.src = nodeUrl(nodeId);
         nodeFrameContainer.append(nodeFrame);
 
@@ -94,16 +103,10 @@
     document.getElementById('close-drawer').addEventListener('click', closeDrawer);
     document.getElementById('close-source').addEventListener('click', closeSource);
 
-    // Node pages tell us which node they show (see node.html) so that we can
-    // update the graph highlight and the shareable URL. Source code links ask
-    // us to open them in a separate drawer view. We cannot read the iframe's
-    // location ourselves: for file:// URLs browsers treat it as cross-origin.
-    //
-    // The current node is highlighted with a CSS rule rather than by editing
-    // the graph, so that it does not matter whether the graph is already
-    // there: it may be rendered later by the browser (when graphviz is not
-    // installed for the python process that creates the report, the graph is
-    // drawn in the browser).
+    // Messages from the node page: which node it shows (we update the highlight
+    // node in the graph and the URL hash; it may differ from the one we opened,
+    // as node pages have previous / next / parent / child links), and requests
+    // to display a source file in the second drawer view.
     window.addEventListener('message', (event) => {
         if (!nodeFrame || event.source !== nodeFrame.contentWindow) {
             return;
@@ -122,9 +125,9 @@
         }
     });
 
-    // Graph nodes link to a hash such as "#node_3". Open the corresponding
-    // node in the drawer ourselves so that following the link replaces the
-    // current history entry rather than adding a new one.
+    // Graph nodes link to a hash such as "#node_3". We handle the click
+    // ourselves because the default action would add a history entry. The
+    // links are in an svg, where the attribute may be xlink:href.
     document.addEventListener('click', (event) => {
         if (event.defaultPrevented || event.button !== 0 ||
             event.metaKey || event.ctrlKey || event.shiftKey ||

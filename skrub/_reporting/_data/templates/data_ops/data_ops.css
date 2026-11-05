@@ -265,6 +265,7 @@ pre, code {
     max-width: none;
 }
 
+/* When the drawer is open the graph and the drawer share the width. */
 .report-index.drawer-open .data_op-node > nav.main-nav {
     flex: 0 0 auto;
     width: 50%;

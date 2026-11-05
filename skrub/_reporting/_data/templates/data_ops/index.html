@@ -21,20 +21,18 @@
     </header>
     <div class="data_op-node-wrapper">
         <div class="data_op-node">
-            {#
-              The graph is only shown in this page, and it is drawn only once.
-              Clicking on a node opens the node drawer next to it. Node pages
-              are loaded into a fresh iframe each time so that navigating
-              around the report does not add entries to the browser history.
-              Source code links shown in node pages are displayed in a second
-              drawer view, from which we can return to the node details.
-            #}
+            {# Graph on the left, drawer on the right (see data_ops-report.js). #}
             <nav class="main-nav" data-is-open>
                 <p class="graph-hint"><strong>Click a node</strong> to display its details.</p>
                 <div id="graph-nav">
                     {{ graph_html | safe }}
                 </div>
             </nav>
+            {#
+              The drawer has two views: the details of the selected node, and
+              the source code file linked from a node page. The latter is
+              closed to return to the former.
+            #}
             <div id="drawer" class="drawer" hidden>
                 <div id="node-view" class="drawer-view">
                     <div class="drawer-toolbar">

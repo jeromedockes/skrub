@@ -291,6 +291,7 @@ def _make_report(
         return f"node_{node_name}.html"
 
     def make_url(node):
+        # in-page links, turned into a drawer view by data_ops-report.js
         return f"#node_{node_rindex[id(node)]}"
 
     graph_drawing = draw_data_op_graph(data_op, url=make_url)
@@ -507,9 +508,8 @@ class GraphDrawing:
 
 
 def _node_kwargs(data_op, *, url=None, show_ids=False):
-    # `url` is a function mapping a node to the address of the page the node
-    # links to (graphviz's "URL" attribute: where the link goes). It is only
-    # used for nodes that have a link, so it has no effect without `url`.
+    # `url` is a function mapping a node to the address its graph node links
+    # to (graphviz's "URL" attribute).
     impl = data_op._skrub_impl
     label = html.escape(_utils.simple_repr(data_op))
     kwargs = {
