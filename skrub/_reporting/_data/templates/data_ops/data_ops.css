@@ -41,7 +41,7 @@ pre, code {
     display: inline-block;
     max-width: 100%;
     margin: 0 0 0.75rem;
-    padding: 6px 10px;
+    padding: 10px 12px;
     border-left: 4px solid #6b9bd2;
     border-radius: 3px;
     background: #eef4fb;
@@ -274,12 +274,7 @@ pre, code {
     display: inline-flex;
     flex: none;
     align-items: center;
-    gap: 6px;
-}
-
-.header-button svg {
-    width: 16px;
-    height: 16px;
+    margin-left: auto;
 }
 
 .report-title {
