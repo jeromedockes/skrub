@@ -1228,3 +1228,11 @@ def test_apply_meta_estimator_with_choice():
     assert list(learner.get_named_params()) == ["alpha"]
     learner.fit({"X": X, "y": y})
     assert learner.predict({"X": X}).shape == y.shape
+
+
+def test_eval_environment():
+    env = skrub.eval_environment()
+    a = skrub.var("a")
+    b = a.skb.apply_func((lambda a, e: e), env)
+    res = b.skb.make_learner().fit_transform({"a": 10})
+    assert res == {"a": 10}

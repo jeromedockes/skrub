@@ -2226,6 +2226,40 @@ def eval_mode():
     return DataOp(EvalMode())
 
 
+class EvalEnv(DataOpImpl):
+    _fields = []
+
+    def compute(self, e, mode, environment):
+        return environment.copy()
+
+
+@checked_data_op_constructor
+def eval_environment():
+    """
+    Return the environment dict in which the DataOp is currently being evaluated.
+
+    This returns a shallow copy.
+
+    The environment is the dict passed to :meth:`DataOp.skb.eval()`
+    or one of the :class:`SkrubLearner` methods, possibly updated with some
+    additional keys used by skrub itself.
+
+    Examples
+    --------
+    >>> import skrub
+    >>> a = skrub.var('a')
+    >>> env = skrub.eval_environment()
+    >>> def f(a, env):
+    ...     print('env:', env)
+    ...     return 2 * a
+    >>> b = a.skb.apply_func(f, env)
+    >>> b.skb.make_learner().fit_transform({'a': 1})
+    env: {'a': 1}
+    2
+    """
+    return DataOp(EvalEnv())
+
+
 class SplitX(DataOpImpl):
     _fields = ["X", "cv", "split_kwargs"]
 

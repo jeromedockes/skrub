@@ -202,7 +202,7 @@ API_REFERENCE = {
             },
             {
                 "description": "Evaluate your DataOps plan.",
-                "autosummary": ["cross_validate", "eval_mode"],
+                "autosummary": ["cross_validate", "eval_mode", "eval_environment"],
                 "template": "base.rst",
             },
             {

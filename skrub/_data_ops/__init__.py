@@ -17,7 +17,16 @@ from ._choosing import (
     choose_int,
     optional,
 )
-from ._data_ops import DataOp, X, as_data_op, deferred, eval_mode, var, y
+from ._data_ops import (
+    DataOp,
+    X,
+    as_data_op,
+    deferred,
+    eval_environment,
+    eval_mode,
+    var,
+    y,
+)
 from ._estimator import ParamSearch, SkrubLearner, cross_validate
 from ._optuna import OptunaParamSearch
 from ._xy_skrub_learner import XySkrubLearner
@@ -30,6 +39,7 @@ __all__ = [
     "as_data_op",
     "deferred",
     "eval_mode",
+    "eval_environment",
     "cross_validate",
     "SkrubLearner",
     "ParamSearch",
